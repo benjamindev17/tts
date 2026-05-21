@@ -343,6 +343,7 @@ function pollCard(p) {
         <div class="flex items-center gap-2 mt-1 flex-wrap">
           <p class="text-xs text-gray-400">
             ${dates.length} date${dates.length>1?'s':''} &middot; ${vc} participant${vc>1?'s':''}
+            ${p.createdAt ? `&middot; Créé le ${(p.createdAt.toDate ? p.createdAt.toDate() : p.createdAt).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}` : ''}
           </p>
           ${chip}
         </div>
@@ -509,16 +510,18 @@ function renderPoll() {
                       ? 'bg-green-100 text-green-700 border border-green-200'
                       : 'bg-orange-100 text-orange-700 border border-orange-200'}">${esc(name)}</span>`
     ).join('');
-    const scoreTag =
-      score >= 4 ? 'text-green-600 bg-green-50 border border-green-100' :
-      score >= 2 ? 'text-orange-500 bg-orange-50 border border-orange-100' :
-                   'text-gray-400 bg-gray-50 border border-gray-100';
+    const availCount = participants.filter(p => p.status === 'available').length;
+    const maybeCount = participants.filter(p => p.status === 'maybe').length;
+    const scoreSummary = score === 0 ? '—' : [
+      availCount > 0 ? `✅ ${availCount}` : '',
+      maybeCount > 0 ? `🟡 ${maybeCount}` : '',
+    ].filter(Boolean).join('  ');
     return `
       <div class="p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
         <div class="flex items-start justify-between gap-3 mb-2">
           <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreTag}">
-            ${score} pt${score>1?'s':''}
+          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-gray-600 bg-gray-100 border border-gray-200">
+            ${scoreSummary}
           </span>
         </div>
         ${participants.length > 0
@@ -606,13 +609,13 @@ function renderPoll() {
                             text-gray-800 placeholder-gray-300 text-sm transition mb-4">
               <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
                 <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>Disponible
+                  <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>1 clic = Disponible
                 </span>
                 <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>Peut-être
+                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>2 clics = Peut-être
                 </span>
                 <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>Indisponible
+                  <span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>3 clics = Indisponible
                 </span>
               </div>
               ${renderCalendar('vote', poll.dates)}
@@ -916,6 +919,12 @@ function openPoll(id) {
   state.pollTab        = 'calendar';
 
   const poll = state.pollCache[id];
+  if (poll) {
+    const voterName = poll.voterNames?.[user.id];
+    if (voterName && poll.votes?.[voterName]) {
+      state.voteSelections = { ...poll.votes[voterName] };
+    }
+  }
   if (poll?.dates?.length > 0) {
     const {year, month} = splitDate(poll.dates[0]);
     state.calYear = year; state.calMonth = month;
