@@ -63,7 +63,7 @@ const state = {
   myParticipations: [],  // polls where user.id ∈ participantIds (excl. created)
   pollCache: {},         // { [pollId]: pollData } — updated by onSnapshot
   currentPollId: null,
-  showResults: false,    // toggled by the "Voir les disponibilités" button
+  pollTab: 'calendar',   // 'calendar' | 'results'
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
   creTitle: '',
@@ -411,7 +411,7 @@ function renderDashboard() {
         <!-- Create button -->
         <button id="btn-create"
                 class="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600
-                       active:bg-indigo-700 text-white font-semibold py-3.5 px-6 rounded-2xl
+                       text-white font-semibold py-3.5 px-6 rounded-2xl
                        transition-all shadow-sm hover:shadow-lg hover:shadow-indigo-200 mb-8">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
@@ -456,7 +456,7 @@ function renderCreate() {
     `<span class="inline-flex items-center bg-indigo-50 text-indigo-600 border border-indigo-100
                   text-xs font-medium px-2.5 py-1 rounded-full">${fmtShort(d)}</span>`
   ).join('');
-  const btnOn  = 'bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700 text-white shadow-sm hover:shadow-lg hover:shadow-indigo-200';
+  const btnOn  = 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm hover:shadow-lg hover:shadow-indigo-200';
   const btnOff = 'bg-gray-100 text-gray-400 cursor-not-allowed';
 
   return `
@@ -547,7 +547,7 @@ function renderPoll() {
 
   return `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-5xl mx-auto">
+      <div class="max-w-lg mx-auto">
 
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
@@ -593,13 +593,30 @@ function renderPoll() {
           </button>
         </div>
 
-        <!-- Content grid -->
-        <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
+        <!-- Tab bar -->
+        <div class="flex bg-gray-100 p-1 rounded-2xl mb-5">
+          <button id="btn-tab-cal"
+                  class="flex-1 py-2.5 text-sm font-semibold rounded-xl transition-all
+                         ${state.pollTab === 'calendar'
+                           ? 'bg-white text-gray-900 shadow-sm'
+                           : 'text-gray-400 hover:text-gray-600'}">
+            Calendrier
+          </button>
+          <button id="btn-tab-res"
+                  class="flex-1 flex items-center justify-center gap-2 py-2.5 text-sm font-semibold rounded-xl transition-all
+                         ${state.pollTab === 'results'
+                           ? 'bg-white text-gray-900 shadow-sm'
+                           : 'text-gray-400 hover:text-gray-600'}">
+            Disponibilités
+            ${vc > 0 ? `<span class="text-xs font-bold px-1.5 py-0.5 rounded-full
+                                    ${state.pollTab === 'results' ? 'bg-indigo-100 text-indigo-600' : 'bg-gray-200 text-gray-500'}">${vc}</span>` : ''}
+          </button>
+        </div>
 
-          <!-- LEFT : Vote -->
+        <!-- Tab content -->
+        ${state.pollTab === 'calendar' ? `
           <div class="space-y-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Votre vote</h2>
               <input id="voter-name" type="text" value="${esc(state.voteName)}"
                      placeholder="Votre prénom…"
                      class="w-full px-4 py-3 rounded-xl border border-gray-200
@@ -620,7 +637,7 @@ function renderPoll() {
             </div>
             <button id="btn-submit-vote"
                     class="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600
-                           active:bg-indigo-700 text-white font-semibold py-3.5 rounded-2xl
+                           text-white font-semibold py-3.5 rounded-2xl
                            transition-all shadow-sm hover:shadow-lg hover:shadow-indigo-200">
               Valider mon vote
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -628,36 +645,20 @@ function renderPoll() {
               </svg>
             </button>
           </div>
-
-          <!-- RIGHT : Results (hidden by default, toggled) -->
-          <div class="space-y-3">
-            <button id="btn-toggle-results"
-                    class="w-full flex items-center justify-between gap-3 bg-white
-                           border border-gray-100 hover:border-indigo-200 hover:shadow-md
-                           text-gray-700 font-semibold py-3.5 px-5 rounded-2xl shadow-sm transition-all">
-              <span class="flex items-center gap-2 text-sm">
-                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
-                </svg>
-                Disponibilités
-                ${vc > 0 ? `<span class="text-xs font-medium text-gray-400">${vc} vote${vc>1?'s':''}</span>` : ''}
-              </span>
-              <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 ${state.showResults ? 'rotate-180' : ''}"
-                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
-              </svg>
-            </button>
-
-            ${state.showResults ? `
-            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              ${results.length > 0
-                ? `<div class="space-y-2">${resultItems}</div>`
-                : '<p class="text-sm text-gray-400">Aucun vote pour l\'instant.</p>'}
-            </div>` : ''}
+        ` : `
+          <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+            ${results.length > 0
+              ? `<div class="space-y-2">${resultItems}</div>`
+              : `<div class="text-center py-8 text-gray-300">
+                   <svg class="w-10 h-10 mx-auto mb-2 opacity-40" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                     <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+                           d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                   </svg>
+                   <p class="text-sm">Aucun vote pour l'instant.</p>
+                 </div>`}
           </div>
+        `}
 
-        </div>
       </div>
     </div>`;
 }
@@ -741,13 +742,22 @@ function attachEvents() {
     })
   );
 
-  // Create / vote / copy / delete / toggle results
-  $('btn-save-poll')?.addEventListener('click',       () => createPoll());
-  $('btn-submit-vote')?.addEventListener('click',     () => submitVote());
-  $('btn-delete-poll')?.addEventListener('click',     () => deletePoll());
-  $('btn-toggle-results')?.addEventListener('click',  () => {
+  // Create / vote / delete
+  $('btn-save-poll')?.addEventListener('click',   () => createPoll());
+  $('btn-submit-vote')?.addEventListener('click', () => submitVote());
+  $('btn-delete-poll')?.addEventListener('click', () => deletePoll());
+
+  // Poll tabs
+  $('btn-tab-cal')?.addEventListener('click', () => {
+    if (state.pollTab === 'calendar') return;
     saveTempInputs();
-    state.showResults = !state.showResults;
+    state.pollTab = 'calendar';
+    render();
+  });
+  $('btn-tab-res')?.addEventListener('click', () => {
+    if (state.pollTab === 'results') return;
+    saveTempInputs();
+    state.pollTab = 'results';
     render();
   });
   $('btn-copy-link')?.addEventListener('click',   () => {
@@ -830,11 +840,11 @@ async function submitVote() {
       [`voterNames.${user.id}`]: name,           // userId -> display name mapping
       participantIds: arrayUnion(user.id),       // enables dashboard "participations" query
     });
-    // Persist name for future visits
     if (name !== user.name) user.name = name;
     state.voteName = ''; state.voteSelections = {};
+    state.pollTab  = 'results'; // show results after voting
     showToast(`Vote de ${name} enregistré !`);
-    render(); // clear form; onSnapshot refreshes results
+    render();
   } catch (e) {
     console.error(e);
     showToast('Erreur lors du vote. Réessayez.');
@@ -850,7 +860,7 @@ function openPoll(id) {
   state.view           = 'poll';
   state.voteName       = user.name;
   state.voteSelections = {};
-  state.showResults    = false;
+  state.pollTab        = 'calendar';
 
   const poll = state.pollCache[id];
   if (poll?.dates?.length > 0) {
