@@ -1,4 +1,31 @@
-'use strict';
+// ─── FIREBASE ─────────────────────────────────────────────────────────────────
+
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import {
+  getFirestore,
+  collection,
+  doc,
+  getDocs,
+  setDoc,
+  updateDoc,
+  onSnapshot,
+  serverTimestamp,
+  query,
+  orderBy,
+} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+
+const firebaseConfig = {
+  apiKey: 'AIzaSyCbb-aiF4tsijmfA_PQpukuimB6-aDBMqc',
+  authDomain: 'jeu-tts.firebaseapp.com',
+  projectId: 'jeu-tts',
+  storageBucket: 'jeu-tts.firebasestorage.app',
+  messagingSenderId: '512763827046',
+  appId: '1:512763827046:web:70cb196aca8f3639cdeea7',
+};
+
+const fbApp = initializeApp(firebaseConfig);
+const db = getFirestore(fbApp);
+const pollsCol = collection(db, 'polls');
 
 // ─── CONSTANTS ────────────────────────────────────────────────────────────────
 
@@ -20,6 +47,8 @@ const state = {
   creDates: new Set(),
   voteName: '',
   voteSelections: {},  // dateKey -> 'available' | 'maybe'
+  loading: false,
+  unsubPoll: null,     // onSnapshot unsubscribe fn for the current poll
 };
 
 // ─── UTILITIES ────────────────────────────────────────────────────────────────
@@ -62,8 +91,7 @@ function showToast(msg) {
   if (!el) return;
   el.textContent = msg;
   el.classList.remove('hidden');
-  // Force reflow so transition fires
-  void el.offsetWidth;
+  void el.offsetWidth; // force reflow so CSS transition fires
   el.classList.add('toast-visible');
   clearTimeout(el._timer);
   el._timer = setTimeout(() => {
@@ -75,11 +103,11 @@ function showToast(msg) {
 // ─── COMPUTED ─────────────────────────────────────────────────────────────────
 
 function computeResults(poll) {
-  return [...poll.dates]
+  return [...(poll.dates || [])]
     .map((date) => {
       let score = 0;
       const participants = [];
-      for (const [name, votes] of Object.entries(poll.votes)) {
+      for (const [name, votes] of Object.entries(poll.votes || {})) {
         const s = votes[date];
         if (s === 'available') {
           score += 2;
@@ -94,13 +122,39 @@ function computeResults(poll) {
     .sort((a, b) => b.score - a.score);
 }
 
+// ─── FIRESTORE OPERATIONS ─────────────────────────────────────────────────────
+
+async function loadPolls() {
+  const snap = await getDocs(query(pollsCol, orderBy('createdAt', 'desc')));
+  return snap.docs.map((d) => ({ id: d.id, ...d.data() }));
+}
+
+async function seedDefaultPoll() {
+  const now = new Date();
+  const y = now.getFullYear();
+  const m = now.getMonth();
+  const data = {
+    title: "Barbecue de l'été",
+    dates: [mkDate(y, m, 8), mkDate(y, m, 9), mkDate(y, m, 15), mkDate(y, m, 22)],
+    votes: {
+      Alice:  { [mkDate(y, m, 8)]: 'available', [mkDate(y, m, 9)]: 'maybe',     [mkDate(y, m, 15)]: 'available' },
+      Bob:    { [mkDate(y, m, 8)]: 'maybe',     [mkDate(y, m, 15)]: 'available', [mkDate(y, m, 22)]: 'available' },
+      Claire: { [mkDate(y, m, 8)]: 'available', [mkDate(y, m, 9)]: 'available',  [mkDate(y, m, 22)]: 'maybe'     },
+    },
+    createdAt: serverTimestamp(),
+  };
+  await setDoc(doc(db, 'polls', 'default'), data);
+  // Return a local copy with a JS Date (serverTimestamp isn't readable client-side until next fetch)
+  return [{ id: 'default', ...data, createdAt: now }];
+}
+
 // ─── CALENDAR COMPONENT ───────────────────────────────────────────────────────
 
 function renderCalendar(mode, pollDates) {
   const y = state.calYear;
   const m = state.calMonth;
-  const firstDow = new Date(y, m, 1).getDay();           // 0 = Sun
-  const offset = firstDow === 0 ? 6 : firstDow - 1;     // Mon-based offset
+  const firstDow = new Date(y, m, 1).getDay();       // 0 = Sun
+  const offset = firstDow === 0 ? 6 : firstDow - 1; // Mon-based offset
   const daysTotal = new Date(y, m + 1, 0).getDate();
 
   const headers = DAYS.map(
@@ -129,7 +183,6 @@ function renderCalendar(mode, pollDates) {
       }
       attr = `data-date="${key}"`;
     } else {
-      // vote mode
       const proposed = Array.isArray(pollDates) && pollDates.includes(key);
       if (proposed) {
         cls += 'clickable cursor-pointer ';
@@ -168,12 +221,26 @@ function renderCalendar(mode, pollDates) {
     </div>`;
 }
 
+// ─── LOADING VIEW ─────────────────────────────────────────────────────────────
+
+function renderLoading() {
+  return `
+    <div class="min-h-screen flex items-center justify-center
+                bg-gradient-to-br from-slate-50 via-white to-indigo-50">
+      <div class="flex flex-col items-center gap-3 text-gray-400">
+        <div class="w-8 h-8 border-2 border-indigo-200 border-t-indigo-500
+                    rounded-full animate-spin"></div>
+        <p class="text-sm">Chargement…</p>
+      </div>
+    </div>`;
+}
+
 // ─── DASHBOARD ────────────────────────────────────────────────────────────────
 
 function renderDashboard() {
   const items = state.polls
     .map((p) => {
-      const vc = Object.keys(p.votes).length;
+      const vc = Object.keys(p.votes || {}).length;
       return `
         <div class="poll-item group flex items-center gap-4 p-4 bg-white rounded-2xl
                     border border-gray-100 hover:border-indigo-200 hover:shadow-md
@@ -182,7 +249,7 @@ function renderDashboard() {
           <div class="flex-1 min-w-0">
             <p class="font-semibold text-gray-900 truncate">${esc(p.title)}</p>
             <p class="text-xs text-gray-400 mt-0.5">
-              ${p.dates.length} date${p.dates.length > 1 ? 's' : ''}&nbsp;&middot;&nbsp;${vc} participant${vc > 1 ? 's' : ''}
+              ${(p.dates || []).length} date${(p.dates || []).length > 1 ? 's' : ''}&nbsp;&middot;&nbsp;${vc} participant${vc > 1 ? 's' : ''}
             </p>
           </div>
           <svg class="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition flex-shrink-0"
@@ -322,7 +389,7 @@ function renderPoll() {
   }
 
   const results = computeResults(poll);
-  const vc = Object.keys(poll.votes).length;
+  const vc = Object.keys(poll.votes || {}).length;
 
   const resultItems = results
     .map(({ date, score, participants }) => {
@@ -366,7 +433,6 @@ function renderPoll() {
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
       <div class="max-w-5xl mx-auto">
 
-        <!-- Header -->
         <div class="flex items-start gap-3 mb-6 pt-2">
           <button id="btn-back"
                   class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl
@@ -378,21 +444,18 @@ function renderPoll() {
           <div>
             <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
             <p class="text-xs text-gray-400 mt-0.5">
-              ${poll.dates.length} date${poll.dates.length > 1 ? 's' : ''} proposée${poll.dates.length > 1 ? 's' : ''}
+              ${(poll.dates || []).length} date${(poll.dates || []).length > 1 ? 's' : ''} proposée${(poll.dates || []).length > 1 ? 's' : ''}
               &middot; ${vc} participant${vc > 1 ? 's' : ''}
             </p>
           </div>
         </div>
 
-        <!-- Two-column grid -->
         <div class="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
           <!-- LEFT : Vote -->
           <div class="space-y-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
-                Votre vote
-              </h2>
+              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">Votre vote</h2>
 
               <input id="voter-name" type="text" value="${esc(state.voteName)}"
                      placeholder="Votre prénom…"
@@ -400,7 +463,6 @@ function renderPoll() {
                             focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
                             text-gray-800 placeholder-gray-300 text-sm transition mb-4">
 
-              <!-- Legend -->
               <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
                 <span class="flex items-center gap-1.5">
                   <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>Disponible
@@ -427,7 +489,7 @@ function renderPoll() {
             </button>
           </div>
 
-          <!-- RIGHT : Results -->
+          <!-- RIGHT : Results (live via onSnapshot) -->
           <div>
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
@@ -451,7 +513,6 @@ function renderPoll() {
 function attachEvents() {
   const $ = (id) => document.getElementById(id);
 
-  // Dashboard ─ create button
   $('btn-create')?.addEventListener('click', () => {
     state.view = 'create';
     state.creTitle = '';
@@ -460,18 +521,12 @@ function attachEvents() {
     render();
   });
 
-  // Dashboard ─ open poll
   document.querySelectorAll('.poll-item').forEach((el) =>
     el.addEventListener('click', () => openPoll(el.dataset.pollId))
   );
 
-  // Back button (create & poll views)
-  $('btn-back')?.addEventListener('click', () => {
-    state.view = 'dashboard';
-    render();
-  });
+  $('btn-back')?.addEventListener('click', () => backToDashboard());
 
-  // Calendar navigation
   $('cal-prev')?.addEventListener('click', () => {
     saveTempInputs();
     if (state.calMonth === 0) { state.calMonth = 11; state.calYear--; }
@@ -486,12 +541,10 @@ function attachEvents() {
     render();
   });
 
-  // Calendar day clicks
   document.querySelectorAll('.cal-cell[data-date]').forEach((el) =>
     el.addEventListener('click', () => {
       const date = el.dataset.date;
       saveTempInputs();
-
       if (state.view === 'create') {
         if (state.creDates.has(date)) state.creDates.delete(date);
         else state.creDates.add(date);
@@ -506,62 +559,92 @@ function attachEvents() {
     })
   );
 
-  // Create ─ save poll
-  $('btn-save-poll')?.addEventListener('click', () => {
-    const title = ($('poll-title')?.value ?? '').trim();
-    if (!title) {
-      const el = $('poll-title');
-      el?.focus();
-      el?.classList.add('ring-2', 'ring-red-300', 'border-red-200');
-      return;
-    }
-    if (state.creDates.size === 0) {
-      showToast('Sélectionnez au moins une date.');
-      return;
-    }
-    const poll = {
-      id: uid(),
-      title,
-      dates: [...state.creDates].sort(),
-      votes: {},
-    };
-    state.polls.unshift(poll);
-    openPoll(poll.id);
+  $('btn-save-poll')?.addEventListener('click', () => createPoll());
+  $('btn-submit-vote')?.addEventListener('click', () => submitVote());
+}
+
+// ─── FIRESTORE ACTIONS ────────────────────────────────────────────────────────
+
+async function createPoll() {
+  const title = (document.getElementById('poll-title')?.value ?? '').trim();
+  if (!title) {
+    const el = document.getElementById('poll-title');
+    el?.focus();
+    el?.classList.add('ring-2', 'ring-red-300', 'border-red-200');
+    return;
+  }
+  if (state.creDates.size === 0) {
+    showToast('Sélectionnez au moins une date.');
+    return;
+  }
+
+  const id = uid();
+  const data = {
+    title,
+    dates: [...state.creDates].sort(),
+    votes: {},
+    createdAt: serverTimestamp(),
+  };
+
+  try {
+    await setDoc(doc(db, 'polls', id), data);
+    state.polls.unshift({ id, ...data, createdAt: new Date() });
+    openPoll(id);
     showToast('Sondage créé avec succès !');
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur Firestore — vérifiez les règles de sécurité.');
+  }
+}
+
+async function submitVote() {
+  const name = (document.getElementById('voter-name')?.value ?? '').trim();
+  if (!name) {
+    const el = document.getElementById('voter-name');
+    el?.focus();
+    el?.classList.add('ring-2', 'ring-red-300', 'border-red-200');
+    return;
+  }
+
+  const poll = state.polls.find((p) => p.id === state.currentPollId);
+  if (!poll) return;
+
+  // Build vote map for this person (only dates they interacted with)
+  const voteObj = {};
+  (poll.dates || []).forEach((d) => {
+    if (state.voteSelections[d]) voteObj[d] = state.voteSelections[d];
   });
 
-  // Poll ─ submit vote
-  $('btn-submit-vote')?.addEventListener('click', () => {
-    const name = ($('voter-name')?.value ?? '').trim();
-    if (!name) {
-      const el = $('voter-name');
-      el?.focus();
-      el?.classList.add('ring-2', 'ring-red-300', 'border-red-200');
-      return;
-    }
-    const poll = state.polls.find((p) => p.id === state.currentPollId);
-    if (!poll) return;
-
-    const voteObj = {};
-    poll.dates.forEach((d) => {
-      if (state.voteSelections[d]) voteObj[d] = state.voteSelections[d];
+  try {
+    // Dot-notation path updates only this voter's entry without overwriting others
+    await updateDoc(doc(db, 'polls', state.currentPollId), {
+      [`votes.${name}`]: voteObj,
     });
-    poll.votes[name] = voteObj;
-
+    // onSnapshot will refresh the results panel automatically
     state.voteName = '';
     state.voteSelections = {};
     showToast(`Vote de ${name} enregistré !`);
-    render();
-  });
+    render(); // clear the form immediately
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur lors du vote. Réessayez.');
+  }
 }
 
 // ─── HELPERS ──────────────────────────────────────────────────────────────────
 
 function openPoll(id) {
+  // Tear down previous listener if any
+  if (state.unsubPoll) {
+    state.unsubPoll();
+    state.unsubPoll = null;
+  }
+
   state.currentPollId = id;
   state.view = 'poll';
   state.voteName = '';
   state.voteSelections = {};
+
   const poll = state.polls.find((p) => p.id === id);
   if (poll?.dates?.length > 0) {
     const { year, month } = splitDate(poll.dates[0]);
@@ -570,6 +653,38 @@ function openPoll(id) {
   } else {
     resetCal();
   }
+
+  // Real-time listener — fires immediately then on every remote change
+  state.unsubPoll = onSnapshot(doc(db, 'polls', id), (snap) => {
+    if (!snap.exists()) return;
+    const updated = { id, ...snap.data() };
+    const idx = state.polls.findIndex((p) => p.id === id);
+    if (idx >= 0) state.polls[idx] = updated;
+    else state.polls.unshift(updated);
+
+    if (state.view === 'poll' && state.currentPollId === id) {
+      saveTempInputs(); // preserve name input before re-render
+      render();
+    }
+  });
+
+  render();
+}
+
+async function backToDashboard() {
+  if (state.unsubPoll) {
+    state.unsubPoll();
+    state.unsubPoll = null;
+  }
+  state.loading = true;
+  render();
+  try {
+    state.polls = await loadPolls();
+  } catch (_) {
+    // keep cached list on network error
+  }
+  state.view = 'dashboard';
+  state.loading = false;
   render();
 }
 
@@ -589,6 +704,8 @@ function saveTempInputs() {
 
 function render() {
   const app = document.getElementById('app');
+  if (!app) return;
+  if (state.loading) { app.innerHTML = renderLoading(); return; }
   switch (state.view) {
     case 'dashboard': app.innerHTML = renderDashboard(); break;
     case 'create':    app.innerHTML = renderCreate();    break;
@@ -599,41 +716,22 @@ function render() {
 
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
-function init() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-
-  // Default poll with pre-populated votes so the UI is immediately testable
-  state.polls.push({
-    id: 'default',
-    title: 'Barbecue de l\'été',
-    dates: [
-      mkDate(y, m, 8),
-      mkDate(y, m, 9),
-      mkDate(y, m, 15),
-      mkDate(y, m, 22),
-    ],
-    votes: {
-      Alice: {
-        [mkDate(y, m, 8)]:  'available',
-        [mkDate(y, m, 9)]:  'maybe',
-        [mkDate(y, m, 15)]: 'available',
-      },
-      Bob: {
-        [mkDate(y, m, 8)]:  'maybe',
-        [mkDate(y, m, 15)]: 'available',
-        [mkDate(y, m, 22)]: 'available',
-      },
-      Claire: {
-        [mkDate(y, m, 8)]:  'available',
-        [mkDate(y, m, 9)]:  'available',
-        [mkDate(y, m, 22)]: 'maybe',
-      },
-    },
-  });
-
+async function init() {
+  state.loading = true;
+  render();
+  try {
+    state.polls = await loadPolls();
+    // Seed demo data only on a fresh empty project
+    if (state.polls.length === 0) {
+      state.polls = await seedDefaultPoll();
+    }
+  } catch (e) {
+    console.error('Firestore init error:', e);
+    showToast('Impossible de charger les données.');
+  }
+  state.loading = false;
   render();
 }
 
-document.addEventListener('DOMContentLoaded', init);
+// ES modules are deferred — DOM is ready when this executes
+init();
