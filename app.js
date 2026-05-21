@@ -224,29 +224,6 @@ async function loadAndOpenPoll(id) {
   openPoll(id);
 }
 
-async function seedDefaultPoll() {
-  const now = new Date();
-  const y = now.getFullYear();
-  const m = now.getMonth();
-  const data = {
-    title: "Barbecue de l'été",
-    dates: [mkDate(y,m,8), mkDate(y,m,9), mkDate(y,m,15), mkDate(y,m,22)],
-    votes: {
-      Alice:  { [mkDate(y,m,8)]:'available', [mkDate(y,m,9)]:'maybe',     [mkDate(y,m,15)]:'available' },
-      Bob:    { [mkDate(y,m,8)]:'maybe',     [mkDate(y,m,15)]:'available', [mkDate(y,m,22)]:'available' },
-      Claire: { [mkDate(y,m,8)]:'available', [mkDate(y,m,9)]:'available',  [mkDate(y,m,22)]:'maybe'     },
-    },
-    createdAt: serverTimestamp(),
-    creatorId: user.id,
-    creatorName: user.name,
-    participantIds: [],
-    voterNames: {},
-  };
-  await setDoc(doc(db, 'polls', 'default'), data);
-  const poll = { id: 'default', ...data, createdAt: now };
-  state.pollCache['default'] = poll;
-  state.myPolls.unshift(poll);
-}
 
 // ─── CALENDAR COMPONENT ───────────────────────────────────────────────────────
 
@@ -675,12 +652,6 @@ function attachEvents() {
       if (!name) { $('welcome-name')?.focus(); return; }
       user.name = name;
       await loadDashboard();
-      // Seed demo poll only on first ever use
-      if (!localStorage.getItem('picka_seeded') && state.myPolls.length === 0) {
-        localStorage.setItem('picka_seeded', '1');
-        await seedDefaultPoll();
-        render();
-      }
     };
     $('btn-welcome-go').addEventListener('click', go);
     $('welcome-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
