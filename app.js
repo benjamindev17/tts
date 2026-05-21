@@ -363,7 +363,7 @@ function renderDashboard() {
 
         <!-- Header -->
         <header class="mb-8 pt-4 flex items-center justify-between">
-          <div>
+          <button id="btn-logo" class="text-left">
             <div class="flex items-center gap-2.5 mb-0.5">
               <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
                 <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,7 +376,7 @@ function renderDashboard() {
             <p class="text-xs text-gray-400 ml-9">Bonjour,
               <span class="font-medium text-gray-600">${esc(user.name)}</span>
             </p>
-          </div>
+          </button>
           <button id="btn-edit-name" title="Modifier le prénom"
                   class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -655,6 +655,8 @@ function attachEvents() {
   }
 
   // Dashboard
+  $('btn-logo')?.addEventListener('click', () => backToDashboard());
+
   $('btn-create')?.addEventListener('click', () => {
     state.view = 'create';
     state.creTitle = '';
