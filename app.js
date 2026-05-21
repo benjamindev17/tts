@@ -503,6 +503,8 @@ function renderPoll() {
   const shareUrl = getShareUrl(poll.id);
   const isOwner  = poll.creatorId === user.id;
 
+  const maxScore = results.length > 0 ? Math.max(...results.map(r => r.score)) : 0;
+
   const resultItems = results.map(({date, score, participants}) => {
     const badges = participants.map(({name, status}) =>
       `<span class="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium
@@ -512,20 +514,25 @@ function renderPoll() {
     ).join('');
     const availCount = participants.filter(p => p.status === 'available').length;
     const maybeCount = participants.filter(p => p.status === 'maybe').length;
-    const scoreSummary = score === 0 ? '—' : [
-      availCount > 0 ? `✅ ${availCount}` : '',
-      maybeCount > 0 ? `🟡 ${maybeCount}` : '',
-    ].filter(Boolean).join('  ');
+    const totalVoters = vc || 1;
+    const availPct = Math.round(availCount / totalVoters * 100);
+    const maybePct = Math.round(maybeCount / totalVoters * 100);
+    const isBest   = score > 0 && score === maxScore;
+    const bar = `
+      <div class="flex rounded-full overflow-hidden h-2 bg-gray-200 mt-2.5">
+        ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500 transition-all"></div>` : ''}
+        ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400 transition-all"></div>` : ''}
+      </div>`;
     return `
-      <div class="p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div class="p-3.5 rounded-xl transition-colors ${isBest ? 'bg-green-50 border border-green-100' : 'bg-gray-50 hover:bg-gray-100'}">
         <div class="flex items-start justify-between gap-3 mb-2">
           <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 text-gray-600 bg-gray-100 border border-gray-200">
-            ${scoreSummary}
-          </span>
+          ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-100 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
+            Meilleure date
+          </span>` : ''}
         </div>
         ${participants.length > 0
-          ? `<div class="flex flex-wrap gap-1">${badges}</div>`
+          ? `<div class="flex flex-wrap gap-1">${badges}</div>${bar}`
           : '<p class="text-xs text-gray-400">Aucun vote</p>'}
       </div>`;
   }).join('');
