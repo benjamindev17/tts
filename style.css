@@ -1,0 +1,45 @@
+body {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+}
+
+/* Calendar cells — square aspect ratio */
+.cal-cell {
+  aspect-ratio: 1 / 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.5rem;
+  font-size: 0.8125rem;
+  line-height: 1;
+  user-select: none;
+  transition: background-color 0.1s ease, transform 0.1s ease, box-shadow 0.1s ease;
+}
+
+.cal-cell.clickable:hover {
+  transform: scale(1.08);
+}
+
+.cal-cell.clickable:active {
+  transform: scale(0.94);
+}
+
+/* Page entrance animation */
+.fade-in {
+  animation: fadeIn 0.18s ease both;
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0);   }
+}
+
+/* Toast */
+#toast {
+  opacity: 0;
+  transform: translateY(8px);
+}
+
+#toast.toast-visible {
+  opacity: 1;
+  transform: translateY(0);
+}
