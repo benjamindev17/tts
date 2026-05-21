@@ -35,15 +35,15 @@ const pollsCol = collection(db, 'polls');
 // once on first visit and can be changed from the dashboard.
 
 const user = (() => {
-  let id = localStorage.getItem('doodle_uid');
+  let id = localStorage.getItem('picka_uid');
   if (!id) {
     id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
-    localStorage.setItem('doodle_uid', id);
+    localStorage.setItem('picka_uid', id);
   }
   return {
     id,
-    get name()    { return localStorage.getItem('doodle_name') || ''; },
-    set name(v)   { localStorage.setItem('doodle_name', v); },
+    get name()    { return localStorage.getItem('picka_name') || ''; },
+    set name(v)   { localStorage.setItem('picka_name', v); },
   };
 })();
 
@@ -328,7 +328,7 @@ function renderWelcome() {
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
           </div>
-          <h1 class="text-2xl font-bold text-gray-900">Doodle</h1>
+          <h1 class="text-2xl font-bold text-gray-900">Picka</h1>
           <p class="text-sm text-gray-400 mt-1">Organisez vos événements facilement.</p>
         </div>
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
@@ -394,7 +394,7 @@ function renderDashboard() {
                         d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
                 </svg>
               </div>
-              <h1 class="text-xl font-bold text-gray-900 tracking-tight">Doodle</h1>
+              <h1 class="text-xl font-bold text-gray-900 tracking-tight">Picka</h1>
             </div>
             <p class="text-xs text-gray-400 ml-9">Bonjour,
               <span class="font-medium text-gray-600">${esc(user.name)}</span>
@@ -676,8 +676,8 @@ function attachEvents() {
       user.name = name;
       await loadDashboard();
       // Seed demo poll only on first ever use
-      if (!localStorage.getItem('doodle_seeded') && state.myPolls.length === 0) {
-        localStorage.setItem('doodle_seeded', '1');
+      if (!localStorage.getItem('picka_seeded') && state.myPolls.length === 0) {
+        localStorage.setItem('picka_seeded', '1');
         await seedDefaultPoll();
         render();
       }

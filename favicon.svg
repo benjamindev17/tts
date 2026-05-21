@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+  <!-- Green arc / smile -->
+  <path d="M18 62 Q50 92 82 62" fill="none" stroke="#a3e635" stroke-width="10" stroke-linecap="round"/>
+  <!-- Blue-violet checkmark -->
+  <path d="M18 50 L38 70 L78 28" fill="none" stroke="#5b5ef4" stroke-width="14" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>
