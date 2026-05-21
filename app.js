@@ -556,21 +556,18 @@ function renderPoll() {
           </button>` : ''}
         </div>
 
-        <!-- Share URL banner -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3
-                    flex items-center gap-3 mb-5">
-          <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        <!-- Share button -->
+        <button id="btn-copy-link"
+                class="w-full flex items-center justify-center gap-2 mb-5
+                       text-sm font-semibold text-indigo-600
+                       bg-indigo-50 hover:bg-indigo-100 border border-indigo-100
+                       px-4 py-2.5 rounded-xl transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
           </svg>
-          <span class="text-xs text-indigo-600 font-mono truncate flex-1 select-all">${esc(shareUrl)}</span>
-          <button id="btn-copy-link"
-                  class="text-xs font-semibold text-indigo-600 hover:text-indigo-800
-                         bg-white border border-indigo-200 hover:border-indigo-400
-                         px-3 py-1.5 rounded-lg transition flex-shrink-0">
-            ${navigator.share ? 'Partager' : 'Copier'}
-          </button>
-        </div>
+          Copier le lien du sondage
+        </button>
 
         <!-- Tab bar -->
         <div class="flex bg-gray-100 p-1 rounded-2xl mb-5">
@@ -732,18 +729,9 @@ function attachEvents() {
     render();
   });
   $('btn-copy-link')?.addEventListener('click', () => {
-    const poll = state.pollCache[state.currentPollId];
-    if (navigator.share) {
-      navigator.share({
-        title: 'Picka',
-        text: `Donne tes disponibilités pour : ${poll.title}`,
-        url: getShareUrl(state.currentPollId),
-      }).catch(() => {});
-    } else {
-      navigator.clipboard.writeText(getShareUrl(state.currentPollId))
-        .then(() => showToast('Lien copié dans le presse-papiers !'))
-        .catch(() => showToast('Impossible de copier automatiquement.'));
-    }
+    navigator.clipboard.writeText(getShareUrl(state.currentPollId))
+      .then(() => showToast('Lien copié dans le presse-papiers !'))
+      .catch(() => showToast('Impossible de copier automatiquement.'));
   });
 }
 
