@@ -2,6 +2,19 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+.app-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    width: 33.333%;
+    min-width: 400px;
+  }
+}
+
 /* Suppress native tap flash + double-tap zoom delay on all interactive elements */
 * {
   -webkit-tap-highlight-color: transparent;

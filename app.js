@@ -364,7 +364,7 @@ function renderDashboard() {
 
   return `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
-      <div class="max-w-sm mx-auto">
+      <div class="app-container">
 
         <!-- Header -->
         <header class="mb-8 pt-4 flex items-center justify-between">
@@ -445,7 +445,7 @@ function renderCreate() {
 
   return `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
-      <div class="max-w-sm mx-auto">
+      <div class="app-container">
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
@@ -518,16 +518,21 @@ function renderPoll() {
     const availPct = Math.round(availCount / totalVoters * 100);
     const maybePct = Math.round(maybeCount / totalVoters * 100);
     const isBest   = score > 0 && score === maxScore;
+    const scoreLabel = score === 0 ? '' : `
+      <span class="text-xs font-semibold ${isBest ? 'text-green-600' : 'text-gray-400'}">${availCount + maybeCount}/${vc}</span>`;
     const bar = `
-      <div class="flex rounded-full overflow-hidden h-2 bg-gray-200 mt-2.5">
-        ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500 transition-all"></div>` : ''}
-        ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400 transition-all"></div>` : ''}
+      <div class="flex items-center gap-2 mt-2">
+        ${scoreLabel}
+        <div class="flex-1 flex rounded-full overflow-hidden h-1.5 bg-gray-200">
+          ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500"></div>` : ''}
+          ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400"></div>` : ''}
+        </div>
       </div>`;
     return `
       <div class="p-3.5 rounded-xl bg-white transition-colors"
-           style="${isBest
-             ? 'box-shadow:0 6px 24px rgba(34,197,94,0.30), 0 2px 8px rgba(34,197,94,0.15)'
-             : 'box-shadow:0 2px 8px rgba(0,0,0,0.06)'}">
+           style="border:1px solid #d1d5db;${isBest
+             ? 'box-shadow:0 6px 24px rgba(34,197,94,0.30),0 2px 8px rgba(34,197,94,0.15)'
+             : 'box-shadow:0 1px 4px rgba(0,0,0,0.05)'}">
         <div class="flex items-start justify-between gap-3 mb-2">
           <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
           ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
@@ -542,7 +547,7 @@ function renderPoll() {
 
   return `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
-      <div class="max-w-sm mx-auto">
+      <div class="app-container">
 
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
