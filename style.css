@@ -2,6 +2,12 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Suppress native tap flash + double-tap zoom delay on all interactive elements */
+button, [data-date] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
 /* Calendar cells — square aspect ratio */
 .cal-cell {
   aspect-ratio: 1 / 1;
@@ -13,7 +19,6 @@ body {
   line-height: 1;
   user-select: none;
 }
-
 
 /* Page entrance animation */
 .fade-in {

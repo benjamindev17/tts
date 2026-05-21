@@ -63,6 +63,7 @@ const state = {
   myParticipations: [],  // polls where user.id ∈ participantIds (excl. created)
   pollCache: {},         // { [pollId]: pollData } — updated by onSnapshot
   currentPollId: null,
+  showResults: false,    // toggled by the "Voir les disponibilités" button
   calYear: new Date().getFullYear(),
   calMonth: new Date().getMonth(),
   creTitle: '',
@@ -628,16 +629,32 @@ function renderPoll() {
             </button>
           </div>
 
-          <!-- RIGHT : Results (live via onSnapshot) -->
-          <div>
+          <!-- RIGHT : Results (hidden by default, toggled) -->
+          <div class="space-y-3">
+            <button id="btn-toggle-results"
+                    class="w-full flex items-center justify-between gap-3 bg-white
+                           border border-gray-100 hover:border-indigo-200 hover:shadow-md
+                           text-gray-700 font-semibold py-3.5 px-5 rounded-2xl shadow-sm transition-all">
+              <span class="flex items-center gap-2 text-sm">
+                <svg class="w-4 h-4 text-indigo-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+                Disponibilités
+                ${vc > 0 ? `<span class="text-xs font-medium text-gray-400">${vc} vote${vc>1?'s':''}</span>` : ''}
+              </span>
+              <svg class="w-4 h-4 text-gray-400 transition-transform duration-200 ${state.showResults ? 'rotate-180' : ''}"
+                   fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/>
+              </svg>
+            </button>
+
+            ${state.showResults ? `
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <h2 class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-4">
-                Participants &amp; disponibilités
-              </h2>
               ${results.length > 0
                 ? `<div class="space-y-2">${resultItems}</div>`
-                : '<p class="text-sm text-gray-400">Aucune date proposée.</p>'}
-            </div>
+                : '<p class="text-sm text-gray-400">Aucun vote pour l\'instant.</p>'}
+            </div>` : ''}
           </div>
 
         </div>
@@ -724,10 +741,15 @@ function attachEvents() {
     })
   );
 
-  // Create / vote / copy / delete
-  $('btn-save-poll')?.addEventListener('click',    () => createPoll());
-  $('btn-submit-vote')?.addEventListener('click',  () => submitVote());
-  $('btn-delete-poll')?.addEventListener('click',  () => deletePoll());
+  // Create / vote / copy / delete / toggle results
+  $('btn-save-poll')?.addEventListener('click',       () => createPoll());
+  $('btn-submit-vote')?.addEventListener('click',     () => submitVote());
+  $('btn-delete-poll')?.addEventListener('click',     () => deletePoll());
+  $('btn-toggle-results')?.addEventListener('click',  () => {
+    saveTempInputs();
+    state.showResults = !state.showResults;
+    render();
+  });
   $('btn-copy-link')?.addEventListener('click',   () => {
     navigator.clipboard.writeText(getShareUrl(state.currentPollId))
       .then(() => showToast('Lien copié dans le presse-papiers !'))
@@ -824,10 +846,11 @@ async function submitVote() {
 function openPoll(id) {
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
 
-  state.currentPollId = id;
-  state.view          = 'poll';
-  state.voteName      = user.name;
+  state.currentPollId  = id;
+  state.view           = 'poll';
+  state.voteName       = user.name;
   state.voteSelections = {};
+  state.showResults    = false;
 
   const poll = state.pollCache[id];
   if (poll?.dates?.length > 0) {
