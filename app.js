@@ -363,7 +363,7 @@ function renderDashboard() {
 
         <!-- Header -->
         <header class="mb-8 pt-4 flex items-center justify-between">
-          <button id="btn-logo" class="text-left">
+          <div>
             <div class="flex items-center gap-2.5 mb-0.5">
               <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
                 <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -376,7 +376,7 @@ function renderDashboard() {
             <p class="text-xs text-gray-400 ml-9">Bonjour,
               <span class="font-medium text-gray-600">${esc(user.name)}</span>
             </p>
-          </button>
+          </div>
           <button id="btn-edit-name" title="Modifier le prénom"
                   class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
             <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -444,12 +444,15 @@ function renderCreate() {
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
-                  class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
+                  class="flex items-center gap-2 hover:opacity-70 transition">
+            <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <span class="text-xl font-bold text-gray-900 tracking-tight">Picka</span>
           </button>
-          <h1 class="text-xl font-bold text-gray-900">Nouveau sondage</h1>
         </div>
 
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
@@ -531,11 +534,14 @@ function renderPoll() {
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
           <button id="btn-back"
-                  class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl
-                         hover:bg-gray-100 transition text-gray-500 mt-0.5">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
-            </svg>
+                  class="flex items-center gap-2 hover:opacity-70 transition flex-shrink-0 mt-0.5">
+            <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
+              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
+              </svg>
+            </div>
+            <span class="text-xl font-bold text-gray-900 tracking-tight">Picka</span>
           </button>
           <div class="flex-1 min-w-0">
             <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
@@ -655,8 +661,6 @@ function attachEvents() {
   }
 
   // Dashboard
-  $('btn-logo')?.addEventListener('click', () => backToDashboard());
-
   $('btn-create')?.addEventListener('click', () => {
     state.view = 'create';
     state.creTitle = '';
