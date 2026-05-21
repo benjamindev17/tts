@@ -907,12 +907,17 @@ function render() {
   const app = document.getElementById('app');
   if (!app) return;
   if (state.loading) { app.innerHTML = renderLoading(); return; }
+  const sameView = app.dataset.view === state.view;
   switch (state.view) {
     case 'welcome':   app.innerHTML = renderWelcome();   break;
     case 'dashboard': app.innerHTML = renderDashboard(); break;
     case 'create':    app.innerHTML = renderCreate();    break;
     case 'poll':      app.innerHTML = renderPoll();      break;
     default:          app.innerHTML = renderLoading();
+  }
+  app.dataset.view = state.view;
+  if (sameView && (state.view === 'poll' || state.view === 'create')) {
+    app.querySelector('.fade-in')?.classList.remove('fade-in');
   }
   attachEvents();
 }

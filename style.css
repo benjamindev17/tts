@@ -50,12 +50,12 @@ button, a, [data-date], [data-poll-id] {
 
 /* Page entrance animation */
 .fade-in {
-  animation: fadeIn 0.18s ease both;
+  animation: fadeIn 0.1s ease both;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from { opacity: 0; }
+  to   { opacity: 1; }
 }
 
 /* Toast */
