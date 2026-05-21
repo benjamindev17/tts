@@ -9,6 +9,7 @@ body {
 
 button, a, [data-date], [data-poll-id] {
   touch-action: manipulation;
+  cursor: pointer;
 }
 
 /* ── Primary CTA button ───────────────────────────────────────────────────── */

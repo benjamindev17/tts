@@ -444,7 +444,7 @@ function renderCreate() {
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
-                  class="flex items-center gap-2 hover:opacity-70 transition">
+                  class="flex items-center gap-2 hover:opacity-70 transition cursor-pointer">
             <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
               <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -534,7 +534,7 @@ function renderPoll() {
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
           <button id="btn-back"
-                  class="flex items-center gap-2 hover:opacity-70 transition flex-shrink-0 mt-0.5">
+                  class="flex items-center gap-2 hover:opacity-70 transition flex-shrink-0 mt-0.5 cursor-pointer">
             <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
               <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
@@ -938,6 +938,7 @@ function openPoll(id) {
 }
 
 async function backToDashboard() {
+  console.log('[Picka] backToDashboard called, user.name=', user.name);
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
   if (user.name) await loadDashboard();
