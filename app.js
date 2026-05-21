@@ -939,7 +939,7 @@ function openPoll(id) {
 }
 
 async function backToDashboard() {
-  console.log('[Picka] backToDashboard called, user.name=', user.name);
+  showToast('Retour…');
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
   if (user.name) await loadDashboard();
