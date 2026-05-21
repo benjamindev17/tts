@@ -2,6 +2,37 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+/* Suppress native tap flash + double-tap zoom delay on all interactive elements */
+button, [data-date] {
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+/* ── Primary CTA button ───────────────────────────────────────────────────── */
+.btn-primary {
+  background-color: #5b5ef4;
+  color: #ffffff;
+  font-weight: 600;
+  border-radius: 9999px;
+  box-shadow: 0 4px 18px rgba(91, 94, 244, 0.36);
+  transition: background-color 0.2s ease, box-shadow 0.2s ease;
+  border: none;
+  cursor: pointer;
+}
+
+.btn-primary:hover {
+  background-color: #7577f7;
+  box-shadow: 0 6px 24px rgba(91, 94, 244, 0.46);
+}
+
+.btn-primary:disabled,
+.btn-primary[disabled] {
+  background-color: #e5e7eb;
+  color: #9ca3af;
+  box-shadow: none;
+  cursor: not-allowed;
+}
+
 /* Calendar cells — square aspect ratio */
 .cal-cell {
   aspect-ratio: 1 / 1;
@@ -13,7 +44,6 @@ body {
   line-height: 1;
   user-select: none;
 }
-
 
 /* Page entrance animation */
 .fade-in {
