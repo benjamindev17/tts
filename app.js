@@ -280,8 +280,8 @@ function renderCalendar(mode, pollDates) {
       if (proposed) {
         cls += 'clickable cursor-pointer ';
         const vs = state.voteSelections[key];
-        if (vs === 'available')       cls += 'bg-green-500 text-white font-semibold ring-2 ring-green-200';
-        else if (vs === 'maybe')      cls += 'bg-orange-400 text-white font-semibold ring-2 ring-orange-200';
+        if (vs === 'available')       cls += 'bg-green-500 text-white font-semibold ring-2 ring-green-300';
+        else if (vs === 'maybe')      cls += 'bg-orange-500 text-white font-semibold ring-2 ring-orange-200';
         else cls += (isWE ? 'bg-gray-100 ' : 'bg-white ') + 'text-gray-700 hover:bg-green-100 ring-2 ring-indigo-200';
         attr = `data-date="${key}"`;
       } else {
@@ -339,10 +339,11 @@ function renderWelcome() {
                         focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
                         text-gray-800 placeholder-gray-300 text-sm transition mb-3">
           <button id="btn-welcome-go"
-                  class="w-full bg-indigo-500 hover:bg-indigo-600 active:bg-indigo-700
-                         text-white font-semibold py-3 rounded-xl transition-all
-                         shadow-sm hover:shadow-lg hover:shadow-indigo-200">
+                  class="btn-primary w-full flex items-center justify-center gap-2 py-3">
             Commencer
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+            </svg>
           </button>
         </div>
       </div>
@@ -410,13 +411,14 @@ function renderDashboard() {
 
         <!-- Create button -->
         <button id="btn-create"
-                class="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600
-                       text-white font-semibold py-3.5 px-6 rounded-2xl
-                       transition-all shadow-sm hover:shadow-lg hover:shadow-indigo-200 mb-8">
+                class="btn-primary w-full flex items-center justify-center gap-2 py-3.5 px-6 mb-8">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
           </svg>
           Créer un sondage
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+          </svg>
         </button>
 
         ${state.myPolls.length > 0 ? `
@@ -456,7 +458,7 @@ function renderCreate() {
     `<span class="inline-flex items-center bg-indigo-50 text-indigo-600 border border-indigo-100
                   text-xs font-medium px-2.5 py-1 rounded-full">${fmtShort(d)}</span>`
   ).join('');
-  const btnOn  = 'bg-indigo-500 hover:bg-indigo-600 text-white shadow-sm hover:shadow-lg hover:shadow-indigo-200';
+  const btnOn  = 'btn-primary';
   const btnOff = 'bg-gray-100 text-gray-400 cursor-not-allowed';
 
   return `
@@ -499,8 +501,8 @@ function renderCreate() {
         </div>
 
         <button id="btn-save-poll" ${count===0?'disabled':''}
-                class="w-full flex items-center justify-center gap-2 font-semibold
-                       py-3.5 rounded-2xl transition-all ${count>0?btnOn:btnOff}">
+                class="w-full flex items-center justify-center gap-2
+                       py-3.5 ${count>0?btnOn:btnOff}">
           Créer le sondage
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
@@ -627,7 +629,7 @@ function renderPoll() {
                   <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>Disponible
                 </span>
                 <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-orange-400 inline-block"></span>Peut-être
+                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>Peut-être
                 </span>
                 <span class="flex items-center gap-1.5">
                   <span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>Indisponible
@@ -636,9 +638,7 @@ function renderPoll() {
               ${renderCalendar('vote', poll.dates)}
             </div>
             <button id="btn-submit-vote"
-                    class="w-full flex items-center justify-center gap-2 bg-indigo-500 hover:bg-indigo-600
-                           text-white font-semibold py-3.5 rounded-2xl
-                           transition-all shadow-sm hover:shadow-lg hover:shadow-indigo-200">
+                    class="btn-primary w-full flex items-center justify-center gap-2 py-3.5">
               Valider mon vote
               <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
