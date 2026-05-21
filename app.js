@@ -525,10 +525,10 @@ function renderPoll() {
       </div>`;
     return `
       <div class="p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
-           ${isBest ? 'style="box-shadow:0 0 0 2px #5b5ef4, 0 0 12px rgba(91,94,244,0.2)"' : ''}>
+           ${isBest ? 'style="box-shadow:0 0 0 2px #22c55e, 0 0 18px rgba(34,197,94,0.35)"' : ''}>
         <div class="flex items-start justify-between gap-3 mb-2">
           <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
-          ${isBest ? `<span class="text-xs font-semibold text-indigo-500 bg-indigo-50 border border-indigo-200 px-2 py-0.5 rounded-full flex-shrink-0">
+          ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
             Meilleure date
           </span>` : ''}
         </div>
