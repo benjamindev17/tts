@@ -445,14 +445,10 @@ function renderCreate() {
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
-                  class="flex items-center gap-2 hover:opacity-70 transition cursor-pointer">
-            <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
-              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <span class="text-xl font-bold text-gray-900 tracking-tight">Picka</span>
+                  class="w-9 h-9 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
           </button>
         </div>
 
@@ -537,14 +533,10 @@ function renderPoll() {
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
           <button id="btn-back"
-                  class="flex items-center gap-2 hover:opacity-70 transition flex-shrink-0 mt-0.5 cursor-pointer">
-            <div class="w-7 h-7 bg-indigo-500 rounded-lg flex items-center justify-center shadow-sm shadow-indigo-200">
-              <svg class="w-3.5 h-3.5 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                      d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
-              </svg>
-            </div>
-            <span class="text-xl font-bold text-gray-900 tracking-tight">Picka</span>
+                  class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500 mt-0.5">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
           </button>
           <div class="flex-1 min-w-0">
             <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
