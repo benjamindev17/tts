@@ -770,6 +770,11 @@ async function createPoll() {
     voterNames: {},
   };
 
+  const btn = document.getElementById('btn-save-poll');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Création…';
+  }
   try {
     await setDoc(doc(db, 'polls', id), data);
     const poll = { id, ...data, createdAt: new Date() };
@@ -780,6 +785,11 @@ async function createPoll() {
   } catch (e) {
     console.error(e);
     showToast('Erreur Firestore — vérifiez les règles de sécurité.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'Créer le sondage <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>';
+    }
   }
 }
 
@@ -814,20 +824,30 @@ async function submitVote() {
   const voteObj = {};
   (poll.dates || []).forEach((d) => { if (state.voteSelections[d]) voteObj[d] = state.voteSelections[d]; });
 
+  const btn = document.getElementById('btn-submit-vote');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Envoi…';
+  }
   try {
     await updateDoc(doc(db, 'polls', state.currentPollId), {
-      [`votes.${name}`]:       voteObj,          // vote data (keyed by display name)
-      [`voterNames.${user.id}`]: name,           // userId -> display name mapping
-      participantIds: arrayUnion(user.id),       // enables dashboard "participations" query
+      [`votes.${name}`]:       voteObj,
+      [`voterNames.${user.id}`]: name,
+      participantIds: arrayUnion(user.id),
     });
     if (name !== user.name) user.name = name;
     state.voteName = ''; state.voteSelections = {};
-    state.pollTab  = 'results'; // show results after voting
+    state.pollTab  = 'results';
     showToast(`Vote de ${name} enregistré !`);
     render();
   } catch (e) {
     console.error(e);
     showToast('Erreur lors du vote. Réessayez.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'Valider mon vote <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+    }
   }
 }
 
