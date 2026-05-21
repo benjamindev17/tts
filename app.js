@@ -793,21 +793,60 @@ async function createPoll() {
   }
 }
 
+function showConfirmModal(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity 0.15s ease';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:1.25rem;padding:1.5rem;max-width:20rem;width:calc(100% - 2rem);
+                box-shadow:0 20px 60px rgba(0,0,0,0.2);transform:scale(0.95);
+                transition:transform 0.15s ease;text-align:center">
+      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">Supprimer le sondage ?</p>
+      <p style="font-size:0.8125rem;color:#6b7280;margin-bottom:1.25rem">${message}</p>
+      <div style="display:flex;gap:0.75rem">
+        <button id="modal-cancel"
+                style="flex:1;padding:0.625rem;border-radius:9999px;border:1px solid #e5e7eb;
+                       background:#f9fafb;font-size:0.875rem;font-weight:600;color:#374151;cursor:pointer">
+          Annuler
+        </button>
+        <button id="modal-confirm"
+                style="flex:1;padding:0.625rem;border-radius:9999px;border:none;
+                       background:#ef4444;font-size:0.875rem;font-weight:600;color:#fff;cursor:pointer">
+          Supprimer
+        </button>
+      </div>
+    </div>`;
+
+  const remove = () => overlay.remove();
+  const card   = overlay.querySelector('div');
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+    card.style.transform  = 'scale(1)';
+  });
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) remove(); });
+  overlay.querySelector('#modal-cancel').addEventListener('click', remove);
+  overlay.querySelector('#modal-confirm').addEventListener('click', () => { remove(); onConfirm(); });
+
+  document.body.appendChild(overlay);
+}
+
 async function deletePoll() {
-  if (!confirm('Supprimer ce sondage définitivement ?')) return;
-  const id = state.currentPollId;
-  try {
-    await deleteDoc(doc(db, 'polls', id));
-    delete state.pollCache[id];
-    state.myPolls = state.myPolls.filter((p) => p.id !== id);
-    if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
-    showToast('Sondage supprimé.');
-    pushUrlHome();
-    await loadDashboard();
-  } catch (e) {
-    console.error(e);
-    showToast('Erreur lors de la suppression.');
-  }
+  showConfirmModal('Cette action est irréversible.', async () => {
+    const id = state.currentPollId;
+    try {
+      await deleteDoc(doc(db, 'polls', id));
+      delete state.pollCache[id];
+      state.myPolls = state.myPolls.filter((p) => p.id !== id);
+      if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
+      showToast('Sondage supprimé.');
+      pushUrlHome();
+      await loadDashboard();
+    } catch (e) {
+      console.error(e);
+      showToast('Erreur lors de la suppression.');
+    }
+  });
 }
 
 async function submitVote() {
