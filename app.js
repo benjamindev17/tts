@@ -1,6 +1,6 @@
 // ─── FIREBASE ─────────────────────────────────────────────────────────────────
 
-import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-app.js';
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-app.js';
 import {
   getFirestore,
   collection,
@@ -14,7 +14,7 @@ import {
   query,
   where,
   arrayUnion,
-} from 'https://www.gstatic.com/firebasejs/10.14.1/firebase-firestore.js';
+} from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCbb-aiF4tsijmfA_PQpukuimB6-aDBMqc',
