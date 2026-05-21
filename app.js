@@ -568,7 +568,7 @@ function renderPoll() {
                   class="text-xs font-semibold text-indigo-600 hover:text-indigo-800
                          bg-white border border-indigo-200 hover:border-indigo-400
                          px-3 py-1.5 rounded-lg transition flex-shrink-0">
-            Copier
+            ${navigator.share ? 'Partager' : 'Copier'}
           </button>
         </div>
 
@@ -731,10 +731,19 @@ function attachEvents() {
     state.pollTab = 'results';
     render();
   });
-  $('btn-copy-link')?.addEventListener('click',   () => {
-    navigator.clipboard.writeText(getShareUrl(state.currentPollId))
-      .then(() => showToast('Lien copié dans le presse-papiers !'))
-      .catch(() => showToast('Impossible de copier automatiquement.'));
+  $('btn-copy-link')?.addEventListener('click', () => {
+    const poll = state.pollCache[state.currentPollId];
+    if (navigator.share) {
+      navigator.share({
+        title: 'Picka',
+        text: `Donne tes disponibilités pour : ${poll.title}`,
+        url: getShareUrl(state.currentPollId),
+      }).catch(() => {});
+    } else {
+      navigator.clipboard.writeText(getShareUrl(state.currentPollId))
+        .then(() => showToast('Lien copié dans le presse-papiers !'))
+        .catch(() => showToast('Impossible de copier automatiquement.'));
+    }
   });
 }
 
