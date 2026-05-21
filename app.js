@@ -358,8 +358,8 @@ function renderDashboard() {
   const hasContent = state.myPolls.length > 0 || state.myParticipations.length > 0;
 
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-md mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="max-w-sm mx-auto">
 
         <!-- Header -->
         <header class="mb-8 pt-4 flex items-center justify-between">
@@ -439,8 +439,8 @@ function renderCreate() {
   const btnOff = 'bg-gray-100 text-gray-400 cursor-not-allowed';
 
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-md mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="max-w-sm mx-auto">
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
@@ -525,8 +525,8 @@ function renderPoll() {
   }).join('');
 
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-lg mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="max-w-sm mx-auto">
 
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
