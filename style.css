@@ -3,8 +3,11 @@ body {
 }
 
 /* Suppress native tap flash + double-tap zoom delay on all interactive elements */
-button, [data-date] {
+* {
   -webkit-tap-highlight-color: transparent;
+}
+
+button, a, [data-date], [data-poll-id] {
   touch-action: manipulation;
 }
 
