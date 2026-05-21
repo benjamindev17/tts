@@ -70,6 +70,9 @@ const state = {
   creDates: new Set(),
   voteName: '',
   voteSelections: {},    // dateKey -> 'available' | 'maybe'
+  editingPoll: false,    // owner edit mode
+  editTitle: '',
+  editDates: new Set(),
   loading: false,
   unsubPoll: null,       // onSnapshot unsubscribe fn
 };
@@ -246,11 +249,12 @@ function renderCalendar(mode, pollDates) {
     const isWE = dow === 0 || dow === 6;
     let cls = 'cal-cell ', attr = '';
 
-    if (mode === 'create') {
+    if (mode === 'create' || mode === 'edit') {
       cls += 'clickable cursor-pointer ';
-      if (state.creDates.has(key))   cls += 'bg-indigo-500 text-white font-semibold shadow-sm shadow-indigo-200';
-      else if (isWE)                 cls += 'bg-gray-100 text-gray-500 hover:bg-indigo-100';
-      else                           cls += 'text-gray-700 hover:bg-indigo-100';
+      const selected = mode === 'edit' ? state.editDates.has(key) : state.creDates.has(key);
+      if (selected)   cls += 'bg-indigo-500 text-white font-semibold shadow-sm shadow-indigo-200';
+      else if (isWE)  cls += 'bg-gray-100 text-gray-500 hover:bg-indigo-100';
+      else            cls += 'text-gray-700 hover:bg-indigo-100';
       attr = `data-date="${key}"`;
     } else {
       const proposed = Array.isArray(pollDates) && pollDates.includes(key);
@@ -539,7 +543,17 @@ function renderPoll() {
             </svg>
           </button>
           <div class="flex-1 min-w-0">
-            <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
+              ${isOwner ? `
+              <button id="btn-edit-poll" title="Modifier le sondage"
+                      class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition text-gray-300 hover:text-indigo-400 flex-shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z"/>
+                </svg>
+              </button>` : ''}
+            </div>
             <p class="text-xs text-gray-400 mt-0.5">
               ${(poll.dates||[]).length} date${(poll.dates||[]).length>1?'s':''} proposée${(poll.dates||[]).length>1?'s':''}
               &middot; ${vc} participant${vc>1?'s':''}
@@ -556,6 +570,30 @@ function renderPoll() {
             </svg>
           </button>` : ''}
         </div>
+
+        ${isOwner && state.editingPoll ? `
+        <!-- Edit panel -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-indigo-100 mb-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Modifier le sondage</p>
+          <input id="edit-poll-title" type="text" value="${esc(state.editTitle)}"
+                 placeholder="Titre du sondage"
+                 class="w-full px-4 py-2.5 rounded-xl border border-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
+                        text-gray-800 text-sm mb-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dates proposées</p>
+          ${renderCalendar('edit', null)}
+          <div class="flex gap-2 mt-4">
+            <button id="btn-cancel-edit"
+                    class="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-200
+                           bg-gray-50 hover:bg-gray-100 text-gray-600 transition">
+              Annuler
+            </button>
+            <button id="btn-save-edit"
+                    class="btn-primary flex-1 py-2.5 text-sm">
+              Enregistrer
+            </button>
+          </div>
+        </div>` : ''}
 
         <!-- Share button -->
         <button id="btn-copy-link"
@@ -701,6 +739,9 @@ function attachEvents() {
       if (state.view === 'create') {
         if (state.creDates.has(date)) state.creDates.delete(date); else state.creDates.add(date);
         render();
+      } else if (state.view === 'poll' && state.editingPoll) {
+        if (state.editDates.has(date)) state.editDates.delete(date); else state.editDates.add(date);
+        render();
       } else if (state.view === 'poll') {
         const cur = state.voteSelections[date];
         if (!cur)               state.voteSelections[date] = 'available';
@@ -711,10 +752,27 @@ function attachEvents() {
     })
   );
 
-  // Create / vote / delete
+  // Create / vote / delete / edit
   $('btn-save-poll')?.addEventListener('click',   () => createPoll());
   $('btn-submit-vote')?.addEventListener('click', () => submitVote());
   $('btn-delete-poll')?.addEventListener('click', () => deletePoll());
+
+  $('btn-edit-poll')?.addEventListener('click', () => {
+    const poll = state.pollCache[state.currentPollId];
+    state.editTitle   = poll.title;
+    state.editDates   = new Set(poll.dates || []);
+    state.editingPoll = true;
+    const { year, month } = splitDate((poll.dates || [])[0] || mkDate(state.calYear, state.calMonth, 1));
+    state.calYear = year; state.calMonth = month;
+    render();
+  });
+
+  $('btn-cancel-edit')?.addEventListener('click', () => {
+    state.editingPoll = false;
+    render();
+  });
+
+  $('btn-save-edit')?.addEventListener('click', () => savePollEdit());
 
   // Poll tabs
   $('btn-tab-cal')?.addEventListener('click', () => {
@@ -858,6 +916,27 @@ async function deletePoll() {
   });
 }
 
+async function savePollEdit() {
+  const title = (document.getElementById('edit-poll-title')?.value ?? '').trim();
+  if (!title) { document.getElementById('edit-poll-title')?.focus(); return; }
+  if (state.editDates.size === 0) { showToast('Sélectionnez au moins une date.'); return; }
+
+  const btn = document.getElementById('btn-save-edit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enregistrement…'; }
+
+  try {
+    const dates = [...state.editDates].sort();
+    await updateDoc(doc(db, 'polls', state.currentPollId), { title, dates });
+    state.editingPoll = false;
+    showToast('Sondage mis à jour !');
+  } catch (e) {
+    console.error(e);
+    showToast('Erreur lors de la mise à jour.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enregistrer'; }
+  }
+}
+
 async function submitVote() {
   const name = (document.getElementById('voter-name')?.value ?? '').trim();
   if (!name) {
@@ -909,6 +988,7 @@ function openPoll(id) {
   state.voteName       = user.name;
   state.voteSelections = {};
   state.pollTab        = 'calendar';
+  state.editingPoll    = false;
 
   const poll = state.pollCache[id];
   if (poll) {
@@ -952,8 +1032,9 @@ function resetCal() {
 }
 
 function saveTempInputs() {
-  const t = document.getElementById('poll-title');  if (t) state.creTitle = t.value;
-  const n = document.getElementById('voter-name');  if (n) state.voteName  = n.value;
+  const t = document.getElementById('poll-title');       if (t) state.creTitle  = t.value;
+  const n = document.getElementById('voter-name');       if (n) state.voteName  = n.value;
+  const e = document.getElementById('edit-poll-title');  if (e) state.editTitle = e.value;
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
