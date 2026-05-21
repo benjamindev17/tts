@@ -729,9 +729,14 @@ function attachEvents() {
     render();
   });
   $('btn-copy-link')?.addEventListener('click', () => {
-    navigator.clipboard.writeText(getShareUrl(state.currentPollId))
-      .then(() => showToast('Lien copié dans le presse-papiers !'))
-      .catch(() => showToast('Impossible de copier automatiquement.'));
+    const url = getShareUrl(state.currentPollId);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast('Lien copié dans le presse-papiers !'))
+        .catch(() => fallbackCopy(url));
+    } else {
+      fallbackCopy(url);
+    }
   });
 }
 
@@ -779,6 +784,21 @@ async function createPoll() {
       btn.innerHTML = 'Créer le sondage <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>';
     }
   }
+}
+
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
+  try {
+    document.execCommand('copy');
+    showToast('Lien copié dans le presse-papiers !');
+  } catch {
+    showToast('Impossible de copier automatiquement.');
+  }
+  ta.remove();
 }
 
 function showConfirmModal(message, onConfirm) {
