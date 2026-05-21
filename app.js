@@ -505,12 +505,14 @@ function renderPoll() {
 
   const maxScore = results.length > 0 ? Math.max(...results.map(r => r.score)) : 0;
 
-  const resultItems = results.map(({date, score, participants}) => {
+  const resultItems = results.map(({date, score, participants}, idx) => {
     const badges = participants.map(({name, status}) =>
-      `<span class="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium
+      `<span class="inline-flex items-center gap-0.5 text-xs px-2.5 py-0.5 rounded-full font-medium
                     ${status==='available'
                       ? 'bg-green-100 text-green-700 border border-green-200'
-                      : 'bg-orange-100 text-orange-700 border border-orange-200'}">${esc(name)}</span>`
+                      : 'bg-orange-100 text-orange-700 border border-orange-200'}">
+        ${esc(name)}${status === 'maybe' ? '<span class="opacity-60">?</span>' : ''}
+      </span>`
     ).join('');
     const availCount = participants.filter(p => p.status === 'available').length;
     const maybeCount = participants.filter(p => p.status === 'maybe').length;
@@ -518,15 +520,10 @@ function renderPoll() {
     const availPct = Math.round(availCount / totalVoters * 100);
     const maybePct = Math.round(maybeCount / totalVoters * 100);
     const isBest   = score > 0 && score === maxScore;
-    const scoreLabel = score === 0 ? '' : `
-      <span class="text-xs font-semibold ${isBest ? 'text-green-600' : 'text-gray-400'}">${availCount + maybeCount}/${vc}</span>`;
     const bar = `
-      <div class="flex items-center gap-2 mt-2">
-        ${scoreLabel}
-        <div class="flex-1 flex rounded-full overflow-hidden h-1.5 bg-gray-200">
-          ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500"></div>` : ''}
-          ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400"></div>` : ''}
-        </div>
+      <div class="flex rounded-full overflow-hidden h-1.5 bg-gray-200 mt-2">
+        ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500"></div>` : ''}
+        ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400"></div>` : ''}
       </div>`;
     return `
       <div class="p-3.5 rounded-xl bg-white transition-colors"
@@ -534,10 +531,14 @@ function renderPoll() {
              ? 'box-shadow:0 6px 24px rgba(34,197,94,0.30),0 2px 8px rgba(34,197,94,0.15)'
              : 'box-shadow:0 1px 4px rgba(0,0,0,0.05)'}">
         <div class="flex items-start justify-between gap-3 mb-2">
-          <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
-          ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full flex-shrink-0">
-            Meilleure date
-          </span>` : ''}
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs font-bold text-gray-400 flex-shrink-0">${idx + 1}.</span>
+            <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            ${score > 0 ? `<span class="text-xs font-semibold ${isBest ? 'text-green-600' : 'text-gray-400'}">${availCount + maybeCount}/${vc}</span>` : ''}
+            ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">Meilleure date</span>` : ''}
+          </div>
         </div>
         ${participants.length > 0
           ? `<div class="flex flex-wrap gap-1">${badges}</div>${bar}`
