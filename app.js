@@ -760,7 +760,7 @@ function attachEvents() {
   $('btn-signout')?.addEventListener('click', () => {
     showConfirmModal('Vous serez redirigé vers l\'écran d\'accueil.', async () => {
       await signOut(auth);
-    }, 'Se déconnecter ?');
+    }, 'Se déconnecter ?', 'Se déconnecter', '#5b5ef4');
   });
 
   // Dashboard
@@ -776,11 +776,6 @@ function attachEvents() {
     state.creDates = new Set();
     resetCal();
     render();
-  });
-
-  $('btn-edit-name')?.addEventListener('click', () => {
-    const name = prompt('Votre prénom :', user.name);
-    if (name?.trim()) { user.name = name.trim(); render(); }
   });
 
   document.querySelectorAll('.poll-item').forEach((el) =>
@@ -941,7 +936,7 @@ function fallbackCopy(text) {
   ta.remove();
 }
 
-function showConfirmModal(message, onConfirm, title = 'Supprimer le sondage ?') {
+function showConfirmModal(message, onConfirm, title = 'Supprimer le sondage ?', confirmLabel = 'Supprimer', confirmColor = '#ef4444') {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity 0.15s ease';
   overlay.innerHTML = `
@@ -958,8 +953,8 @@ function showConfirmModal(message, onConfirm, title = 'Supprimer le sondage ?') 
         </button>
         <button id="modal-confirm"
                 style="flex:1;padding:0.625rem;border-radius:9999px;border:none;
-                       background:#ef4444;font-size:0.875rem;font-weight:600;color:#fff;cursor:pointer">
-          Supprimer
+                       background:${confirmColor};font-size:0.875rem;font-weight:600;color:#fff;cursor:pointer">
+          ${confirmLabel}
         </button>
       </div>
     </div>`;
