@@ -84,20 +84,16 @@ button, a, [data-date], [data-poll-id] {
   inset: 0;
   background: linear-gradient(
     90deg,
-    transparent 0%,
-    rgba(91, 94, 244, 0.07) 40%,
-    rgba(91, 94, 244, 0.13) 60%,
-    rgba(91, 94, 244, 0.07) 80%,
-    transparent 100%
+    rgba(91, 94, 244, 0.10) 0%,
+    rgba(91, 94, 244, 0.06) 100%
   );
-  background-size: 200% 100%;
-  background-position: -100% 0;
-  transition: background-position 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+  transform: translateX(-100%);
+  transition: transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
 .poll-card-shine:hover::after {
-  background-position: 100% 0;
+  transform: translateX(0);
 }
 
 /* Toast */
