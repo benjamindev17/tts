@@ -72,7 +72,7 @@ button, a, [data-date], [data-poll-id] {
   to   { opacity: 1; }
 }
 
-/* Poll card hover shimmer */
+/* Poll card hover wave fill */
 .poll-card-shine {
   position: relative;
   overflow: hidden;
@@ -83,20 +83,21 @@ button, a, [data-date], [data-poll-id] {
   position: absolute;
   inset: 0;
   background: linear-gradient(
-    105deg,
-    transparent 40%,
-    rgba(255, 255, 255, 0.7) 50%,
-    rgba(91, 94, 244, 0.12) 60%,
-    transparent 70%
+    90deg,
+    transparent 0%,
+    rgba(91, 94, 244, 0.07) 40%,
+    rgba(91, 94, 244, 0.13) 60%,
+    rgba(91, 94, 244, 0.07) 80%,
+    transparent 100%
   );
-  transform: translateX(-100%);
-  transition: none;
+  background-size: 200% 100%;
+  background-position: -100% 0;
+  transition: background-position 1.4s cubic-bezier(0.4, 0, 0.2, 1);
   pointer-events: none;
 }
 
 .poll-card-shine:hover::after {
-  transform: translateX(100%);
-  transition: transform 0.55s ease;
+  background-position: 100% 0;
 }
 
 /* Toast */
