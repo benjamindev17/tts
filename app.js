@@ -341,7 +341,7 @@ function pollCard(p) {
     : '';
   return `
     <div class="poll-item group flex items-center gap-4 p-4 bg-white rounded-2xl
-                border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer"
+                border border-indigo-200 shadow-sm hover:shadow-md transition-all cursor-pointer poll-card-shine"
          data-poll-id="${p.id}">
       <div class="flex-1 min-w-0">
         <p class="font-semibold text-gray-900 truncate">${esc(p.title)}</p>
