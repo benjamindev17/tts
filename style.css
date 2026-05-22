@@ -81,14 +81,14 @@ button, a, [data-date], [data-poll-id] {
 .poll-card-shine::after {
   content: '';
   position: absolute;
-  inset: 0;
-  background: linear-gradient(
-    90deg,
-    rgba(91, 94, 244, 0.10) 0%,
-    rgba(91, 94, 244, 0.06) 100%
-  );
-  transform: translateX(-100%);
-  transition: transform 1.4s cubic-bezier(0.4, 0, 0.2, 1);
+  top: 0;
+  left: 0;
+  width: 140%;
+  height: 100%;
+  background: rgba(91, 94, 244, 0.09);
+  border-radius: 0 60% 60% 0 / 0 50% 50% 0;
+  transform: translateX(-140%);
+  transition: transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
   pointer-events: none;
 }
 
