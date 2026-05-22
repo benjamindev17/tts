@@ -44,14 +44,17 @@ const pollsCol = collection(db, 'polls');
 // once on first visit and can be changed from the dashboard.
 
 const user = (() => {
-  let id = localStorage.getItem('picka_uid');
-  if (!id) {
-    id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
-    localStorage.setItem('picka_uid', id);
-  }
+  const anonId = (() => {
+    let id = localStorage.getItem('picka_uid');
+    if (!id) {
+      id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+      localStorage.setItem('picka_uid', id);
+    }
+    return id;
+  })();
   return {
-    id,
-    get name()    { return localStorage.getItem('picka_name') || ''; },
+    get id()      { return state?.googleUser?.uid ?? anonId; },
+    get name()    { return state?.googleUser?.displayName ?? localStorage.getItem('picka_name') ?? ''; },
     set name(v)   { localStorage.setItem('picka_name', v); },
   };
 })();
@@ -323,8 +326,25 @@ function renderWelcome() {
         </div>
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h2 class="text-base font-semibold text-gray-800 mb-1">Bienvenue !</h2>
-          <p class="text-sm text-gray-400 mb-4">Comment vous appelez-vous ?</p>
-          <input id="welcome-name" type="text" placeholder="Votre prénom…" autofocus
+          <p class="text-sm text-gray-400 mb-4">Connectez-vous pour commencer.</p>
+          <button id="btn-google-signin"
+                  class="w-full flex items-center justify-center gap-3 py-3 px-4
+                         bg-white border border-gray-200 rounded-xl text-sm font-semibold
+                         text-gray-700 hover:bg-gray-50 transition shadow-sm mb-4">
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+            </svg>
+            Continuer avec Google
+          </button>
+          <div class="flex items-center gap-3 mb-4">
+            <div class="flex-1 h-px bg-gray-100"></div>
+            <span class="text-xs text-gray-300">ou</span>
+            <div class="flex-1 h-px bg-gray-100"></div>
+          </div>
+          <input id="welcome-name" type="text" placeholder="Continuer sans compte…"
                  class="w-full px-4 py-3 rounded-xl border border-gray-200
                         focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
                         text-gray-800 placeholder-gray-300 text-sm transition mb-3">
@@ -391,13 +411,22 @@ function renderDashboard() {
               <span class="font-medium text-gray-600">${esc(user.name)}</span>
             </p>
           </div>
-          <button id="btn-edit-name" title="Modifier le prénom"
-                  class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-          </button>
+          ${state.googleUser
+            ? `<button id="btn-signout" title="Se déconnecter"
+                      class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+              </button>`
+            : `<button id="btn-edit-name" title="Modifier le prénom"
+                      class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                </svg>
+              </button>`
+          }
         </header>
 
         <!-- Create button -->
@@ -715,6 +744,15 @@ function attachEvents() {
   const $ = (id) => document.getElementById(id);
 
   // Welcome screen
+  $('btn-google-signin')?.addEventListener('click', async () => {
+    try {
+      await signInWithPopup(auth, provider);
+      // onAuthStateChanged prend le relais et appelle loadDashboard()
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') showToast('Erreur de connexion Google.');
+    }
+  });
+
   if ($('btn-welcome-go')) {
     const go = async () => {
       const name = ($('welcome-name')?.value ?? '').trim();
@@ -725,6 +763,11 @@ function attachEvents() {
     $('btn-welcome-go').addEventListener('click', go);
     $('welcome-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
   }
+
+  // Sign out
+  $('btn-signout')?.addEventListener('click', async () => {
+    await signOut(auth);
+  });
 
   // Dashboard
   $('btn-create')?.addEventListener('click', () => {
