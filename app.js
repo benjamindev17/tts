@@ -547,6 +547,43 @@ function renderPoll() {
       </div>`;
   }).join('');
 
+  const hasVotedNow = !!(poll.voterNames?.[user.id]);
+  const calendarTabHtml = (hasVotedNow && !state.editingVote)
+    ? `<div class="space-y-4">
+        <div class="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div class="opacity-30 pointer-events-none select-none">${renderCalendar('vote', poll.dates)}</div>
+          <div class="absolute inset-0 flex items-center justify-center rounded-2xl">
+            <button id="btn-edit-vote" class="btn-primary flex items-center justify-center gap-2 px-6 py-3.5">
+              Modifier mon vote
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>`
+    : `<div class="space-y-4">
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <input id="voter-name" type="text" value="${esc(state.voteName)}"
+                 placeholder="Votre prénom…"
+                 class="w-full px-4 py-3 rounded-xl border border-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
+                        text-gray-800 placeholder-gray-300 text-sm transition mb-4">
+          <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>1 clic = Disponible</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>2 clics = Peut-être</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>3 clics = Indisponible</span>
+          </div>
+          ${renderCalendar('vote', poll.dates)}
+        </div>
+        <button id="btn-submit-vote" class="btn-primary w-full flex items-center justify-center gap-2 py-3.5">
+          Valider mon vote
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </button>
+      </div>`;
+
   return `
     <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
       <div class="app-container">
@@ -646,59 +683,7 @@ function renderPoll() {
         </div>
 
         <!-- Tab content -->
-        ${state.pollTab === 'calendar' ? (() => {
-          const hasVotedNow = !!(poll.voterNames?.[user.id]);
-          if (hasVotedNow && !state.editingVote) {
-            return `
-          <div class="space-y-4">
-            <div class="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <div class="opacity-30 pointer-events-none select-none">
-                ${renderCalendar('vote', poll.dates)}
-              </div>
-              <div class="absolute inset-0 flex items-center justify-center rounded-2xl">
-                <button id="btn-edit-vote"
-                        class="btn-primary flex items-center justify-center gap-2 px-6 py-3.5">
-                  Modifier mon vote
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
-                  </svg>
-                </button>
-              </div>
-            </div>
-          </div>`;
-          }
-          return `
-          <div class="space-y-4">
-            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <input id="voter-name" type="text" value="${esc(state.voteName)}"
-                     placeholder="Votre prénom…"
-                     class="w-full px-4 py-3 rounded-xl border border-gray-200
-                            focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
-                            text-gray-800 placeholder-gray-300 text-sm transition mb-4">
-              <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>1 clic = Disponible
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>2 clics = Peut-être
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>3 clics = Indisponible
-                </span>
-              </div>
-              ${renderCalendar('vote', poll.dates)}
-            </div>
-            <button id="btn-submit-vote"
-                    class="btn-primary w-full flex items-center justify-center gap-2 py-3.5">
-              Valider mon vote
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-              </svg>
-            </button>
-          </div>`;
-        })()
-
-        ` : `
+        ${state.pollTab === 'calendar' ? calendarTabHtml : `
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             ${results.length > 0
               ? `<div class="space-y-2">${resultItems}</div>`
