@@ -16,6 +16,13 @@ import {
   where,
   arrayUnion,
 } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCbb-aiF4tsijmfA_PQpukuimB6-aDBMqc',
@@ -28,6 +35,8 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db   = getFirestore(fbApp);
+const auth     = getAuth(fbApp);
+const provider = new GoogleAuthProvider();
 const pollsCol = collection(db, 'polls');
 
 // ─── USER IDENTITY (localStorage) ────────────────────────────────────────────
@@ -70,6 +79,7 @@ const state = {
   creDates: new Set(),
   voteName: '',
   voteSelections: {},    // dateKey -> 'available' | 'maybe'
+  googleUser: null,      // null = non connecté, objet Firebase User = connecté
   editingPoll: false,    // owner edit mode
   editingVote: false,    // re-vote mode
   loading: false,
@@ -1097,22 +1107,13 @@ function render() {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const urlPollId = getUrlPollId();
-
-  // Direct link → open poll immediately (even without a name)
-  if (urlPollId) {
-    await loadAndOpenPoll(urlPollId);
-    return;
-  }
-
-  // First visit → ask for name
-  if (!user.name) {
-    state.view = 'welcome';
-    render();
-    return;
-  }
-
-  await loadDashboard();
+  onAuthStateChanged(auth, async (googleUser) => {
+    state.googleUser = googleUser ?? null;
+    const urlPollId = getUrlPollId();
+    if (urlPollId) { await loadAndOpenPoll(urlPollId); return; }
+    if (!user.name) { state.view = 'welcome'; render(); return; }
+    await loadDashboard();
+  });
 }
 
 init();
