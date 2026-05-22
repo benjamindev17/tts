@@ -71,8 +71,6 @@ const state = {
   voteName: '',
   voteSelections: {},    // dateKey -> 'available' | 'maybe'
   editingPoll: false,    // owner edit mode
-  editTitle: '',
-  editDates: new Set(),
   editingVote: false,    // re-vote mode
   loading: false,
   unsubPoll: null,       // onSnapshot unsubscribe fn
@@ -99,7 +97,7 @@ function fmtLong(key) {
   const s = new Date(year,month,day).toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'});
   return s.charAt(0).toUpperCase()+s.slice(1);
 }
-function uid() {
+function generatePollId() {
   return 'p'+Date.now().toString(36)+Math.random().toString(36).slice(2,7);
 }
 function sortByCreatedAt(arr) {
@@ -840,7 +838,7 @@ async function createPoll() {
   }
   if (state.creDates.size === 0) { showToast('Sélectionnez au moins une date.'); return; }
 
-  const id   = uid();
+  const id   = generatePollId();
   const data = {
     title,
     dates: [...state.creDates].sort(),
@@ -1053,7 +1051,6 @@ function openPoll(id) {
 }
 
 async function backToDashboard() {
-  showToast('Retour…');
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
   if (user.name) await loadDashboard();
@@ -1069,6 +1066,11 @@ function saveTempInputs() {
   const t = document.getElementById('poll-title');       if (t) state.creTitle  = t.value;
   const n = document.getElementById('voter-name');       if (n) state.voteName  = n.value;
   const e = document.getElementById('edit-poll-title');  if (e) state.editTitle = e.value;
+  document.querySelectorAll('.cal-cell[data-date]').forEach((el) => {
+    const date = el.dataset.date;
+    if (el.classList.contains('bg-green-500'))       state.voteSelections[date] = 'available';
+    else if (el.classList.contains('bg-orange-500')) state.voteSelections[date] = 'maybe';
+  });
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
