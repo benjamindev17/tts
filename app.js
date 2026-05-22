@@ -73,6 +73,7 @@ const state = {
   editingPoll: false,    // owner edit mode
   editTitle: '',
   editDates: new Set(),
+  editingVote: false,    // re-vote mode
   loading: false,
   unsubPoll: null,       // onSnapshot unsubscribe fn
 };
@@ -645,7 +646,28 @@ function renderPoll() {
         </div>
 
         <!-- Tab content -->
-        ${state.pollTab === 'calendar' ? `
+        ${state.pollTab === 'calendar' ? (() => {
+          const hasVotedNow = !!(poll.voterNames?.[user.id]);
+          if (hasVotedNow && !state.editingVote) {
+            return `
+          <div class="space-y-4">
+            <div class="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+              <div class="opacity-30 pointer-events-none select-none">
+                ${renderCalendar('vote', poll.dates)}
+              </div>
+              <div class="absolute inset-0 flex items-center justify-center rounded-2xl">
+                <button id="btn-edit-vote"
+                        class="btn-primary flex items-center justify-center gap-2 px-6 py-3.5">
+                  Modifier mon vote
+                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+                  </svg>
+                </button>
+              </div>
+            </div>
+          </div>`;
+          }
+          return `
           <div class="space-y-4">
             <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
               <input id="voter-name" type="text" value="${esc(state.voteName)}"
@@ -673,7 +695,9 @@ function renderPoll() {
                 <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
               </svg>
             </button>
-          </div>
+          </div>`;
+        })()
+
         ` : `
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             ${results.length > 0
@@ -785,6 +809,11 @@ function attachEvents() {
 
   $('btn-cancel-edit')?.addEventListener('click', () => {
     state.editingPoll = false;
+    render();
+  });
+
+  $('btn-edit-vote')?.addEventListener('click', () => {
+    state.editingVote = true;
     render();
   });
 
@@ -980,7 +1009,8 @@ async function submitVote() {
     });
     if (name !== user.name) user.name = name;
     state.voteName = ''; state.voteSelections = {};
-    state.pollTab  = 'results';
+    state.pollTab    = 'results';
+    state.editingVote = false;
     showToast(`Vote de ${name} enregistré !`);
     render();
   } catch (e) {
@@ -1003,10 +1033,13 @@ function openPoll(id) {
   state.view           = 'poll';
   state.voteName       = user.name;
   state.voteSelections = {};
-  state.pollTab        = 'calendar';
   state.editingPoll    = false;
+  state.editingVote    = false;
 
   const poll = state.pollCache[id];
+  const hasVoted = !!(poll?.voterNames?.[user.id]);
+  state.pollTab = hasVoted ? 'results' : 'calendar';
+
   if (poll) {
     const voterName = poll.voterNames?.[user.id];
     if (voterName && poll.votes?.[voterName]) {
