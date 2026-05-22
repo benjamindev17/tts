@@ -158,7 +158,7 @@ window.addEventListener('popstate', () => {
     loadAndOpenPoll(id);
   } else {
     if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
-    if (user.name) loadDashboard();
+    if (state.googleUser) loadDashboard();
     else { state.view = 'welcome'; render(); }
   }
 });
@@ -1078,7 +1078,7 @@ function openPoll(id) {
 async function backToDashboard() {
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
-  if (user.name) await loadDashboard();
+  if (state.googleUser) await loadDashboard();
   else { state.view = 'welcome'; render(); }
 }
 
