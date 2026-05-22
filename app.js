@@ -16,6 +16,13 @@ import {
   where,
   arrayUnion,
 } from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-firestore.js';
+import {
+  getAuth,
+  GoogleAuthProvider,
+  signInWithPopup,
+  signOut,
+  onAuthStateChanged,
+} from 'https://www.gstatic.com/firebasejs/12.13.0/firebase-auth.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyCbb-aiF4tsijmfA_PQpukuimB6-aDBMqc',
@@ -28,6 +35,8 @@ const firebaseConfig = {
 
 const fbApp = initializeApp(firebaseConfig);
 const db   = getFirestore(fbApp);
+const auth     = getAuth(fbApp);
+const provider = new GoogleAuthProvider();
 const pollsCol = collection(db, 'polls');
 
 // ─── USER IDENTITY (localStorage) ────────────────────────────────────────────
@@ -35,14 +44,17 @@ const pollsCol = collection(db, 'polls');
 // once on first visit and can be changed from the dashboard.
 
 const user = (() => {
-  let id = localStorage.getItem('picka_uid');
-  if (!id) {
-    id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
-    localStorage.setItem('picka_uid', id);
-  }
+  const anonId = (() => {
+    let id = localStorage.getItem('picka_uid');
+    if (!id) {
+      id = 'u' + Date.now().toString(36) + Math.random().toString(36).slice(2, 9);
+      localStorage.setItem('picka_uid', id);
+    }
+    return id;
+  })();
   return {
-    id,
-    get name()    { return localStorage.getItem('picka_name') || ''; },
+    get id()      { return state?.googleUser?.uid ?? anonId; },
+    get name()    { return state?.googleUser?.displayName ?? localStorage.getItem('picka_name') ?? ''; },
     set name(v)   { localStorage.setItem('picka_name', v); },
   };
 })();
@@ -70,6 +82,7 @@ const state = {
   creDates: new Set(),
   voteName: '',
   voteSelections: {},    // dateKey -> 'available' | 'maybe'
+  googleUser: null,      // null = non connecté, objet Firebase User = connecté
   editingPoll: false,    // owner edit mode
   editingVote: false,    // re-vote mode
   loading: false,
@@ -145,8 +158,7 @@ window.addEventListener('popstate', () => {
     loadAndOpenPoll(id);
   } else {
     if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
-    if (user.name) loadDashboard();
-    else { state.view = 'welcome'; render(); }
+    loadDashboard();
   }
 });
 
@@ -170,28 +182,45 @@ function computeResults(poll) {
 async function loadDashboard() {
   state.loading = true;
   render();
+  const anonId = localStorage.getItem('picka_uid');
   try {
-    const [createdSnap, participatedSnap] = await Promise.all([
-      getDocs(query(pollsCol, where('creatorId', '==', user.id))),
-      getDocs(query(pollsCol, where('participantIds', 'array-contains', user.id))),
-    ]);
+    if (state.googleUser) {
+      const gid = state.googleUser.uid;
+      const queryList = [
+        getDocs(query(pollsCol, where('creatorId', '==', gid))),
+        getDocs(query(pollsCol, where('participantIds', 'array-contains', gid))),
+      ];
+      if (anonId && anonId !== gid)
+        queryList.push(getDocs(query(pollsCol, where('participantIds', 'array-contains', anonId))));
 
-    const createdIds = new Set();
-    state.myPolls = sortByCreatedAt(createdSnap.docs.map((d) => {
-      createdIds.add(d.id);
-      const p = { id: d.id, ...d.data() };
-      state.pollCache[d.id] = p;
-      return p;
-    }));
-    state.myParticipations = sortByCreatedAt(
-      participatedSnap.docs
-        .filter((d) => !createdIds.has(d.id))
-        .map((d) => {
+      const [createdSnap, participatedGoogleSnap, participatedAnonSnap] = await Promise.all(queryList);
+
+      const createdIds = new Set();
+      state.myPolls = sortByCreatedAt(createdSnap.docs.map((d) => {
+        createdIds.add(d.id);
+        const p = { id: d.id, ...d.data() };
+        state.pollCache[d.id] = p;
+        return p;
+      }));
+      const seenIds = new Set(createdIds);
+      state.myParticipations = sortByCreatedAt(
+        [...participatedGoogleSnap.docs, ...(participatedAnonSnap?.docs ?? [])]
+          .filter((d) => { if (seenIds.has(d.id)) return false; seenIds.add(d.id); return true; })
+          .map((d) => { const p = { id: d.id, ...d.data() }; state.pollCache[d.id] = p; return p; })
+      );
+    } else {
+      state.myPolls = [];
+      if (anonId) {
+        const snap = await getDocs(query(pollsCol, where('participantIds', 'array-contains', anonId)));
+        state.myParticipations = sortByCreatedAt(snap.docs.map((d) => {
           const p = { id: d.id, ...d.data() };
           state.pollCache[d.id] = p;
           return p;
-        })
-    );
+        }));
+      } else {
+        state.myParticipations = [];
+      }
+    }
   } catch (e) {
     console.error(e);
     showToast('Erreur de chargement.');
@@ -313,17 +342,18 @@ function renderWelcome() {
         </div>
         <div class="bg-white rounded-2xl p-6 shadow-sm border border-gray-100">
           <h2 class="text-base font-semibold text-gray-800 mb-1">Bienvenue !</h2>
-          <p class="text-sm text-gray-400 mb-4">Comment vous appelez-vous ?</p>
-          <input id="welcome-name" type="text" placeholder="Votre prénom…" autofocus
-                 class="w-full px-4 py-3 rounded-xl border border-gray-200
-                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
-                        text-gray-800 placeholder-gray-300 text-sm transition mb-3">
-          <button id="btn-welcome-go"
-                  class="btn-primary w-full flex items-center justify-center gap-2 py-3">
-            Commencer
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+          <p class="text-sm text-gray-400 mb-4">Connectez-vous pour créer un sondage.</p>
+          <button id="btn-google-signin"
+                  class="w-full flex items-center justify-center gap-3 py-3 px-4
+                         bg-white border border-gray-200 rounded-xl text-sm font-semibold
+                         text-gray-700 hover:bg-gray-50 transition shadow-sm">
+            <svg class="w-5 h-5" viewBox="0 0 24 24">
+              <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+              <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+              <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+              <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
             </svg>
+            Continuer avec Google
           </button>
         </div>
       </div>
@@ -377,17 +407,30 @@ function renderDashboard() {
               </div>
               <h1 class="text-xl font-bold text-gray-900 tracking-tight">Picka</h1>
             </div>
-            <p class="text-xs text-gray-400 ml-9">Bonjour,
-              <span class="font-medium text-gray-600">${esc(user.name)}</span>
-            </p>
+            ${state.googleUser
+              ? `<p class="text-xs text-gray-400 ml-9">Bonjour, <span class="font-medium text-gray-600">${esc(user.name)}</span></p>`
+              : `<p class="text-xs text-gray-400 ml-9">Mode invité</p>`}
           </div>
-          <button id="btn-edit-name" title="Modifier le prénom"
-                  class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
-                    d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
-            </svg>
-          </button>
+          ${state.googleUser
+            ? `<button id="btn-signout" title="Se déconnecter"
+                      class="p-2 rounded-xl hover:bg-gray-100 transition text-gray-400 hover:text-gray-600">
+                <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"/>
+                </svg>
+              </button>`
+            : `<button id="btn-google-signin"
+                      class="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-indigo-50 border border-indigo-100
+                             text-xs font-semibold text-indigo-600 hover:bg-indigo-100 transition">
+                <svg class="w-3.5 h-3.5" viewBox="0 0 24 24">
+                  <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
+                  <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
+                  <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
+                  <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
+                </svg>
+                Se connecter
+              </button>`
+          }
         </header>
 
         <!-- Create button -->
@@ -396,7 +439,7 @@ function renderDashboard() {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
           </svg>
-          Créer un sondage
+          ${state.googleUser ? 'Créer un sondage' : 'Connectez-vous gratuitement pour créer un sondage'}
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
           </svg>
@@ -424,8 +467,8 @@ function renderDashboard() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
                     d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"/>
             </svg>
-            <p class="text-sm">Aucun sondage pour l'instant.</p>
-            <p class="text-xs mt-1 opacity-60">Créez-en un ou ouvrez un lien partagé.</p>
+            <p class="text-sm">${state.googleUser ? 'Aucun sondage pour l\'instant.' : 'Aucune participation pour l\'instant.'}</p>
+            <p class="text-xs mt-1 opacity-60">${state.googleUser ? 'Créez-en un ou ouvrez un lien partagé.' : 'Ouvrez un lien partagé pour voter.'}</p>
           </div>` : ''}
 
       </div>
@@ -705,19 +748,29 @@ function attachEvents() {
   const $ = (id) => document.getElementById(id);
 
   // Welcome screen
-  if ($('btn-welcome-go')) {
-    const go = async () => {
-      const name = ($('welcome-name')?.value ?? '').trim();
-      if (!name) { $('welcome-name')?.focus(); return; }
-      user.name = name;
-      await loadDashboard();
-    };
-    $('btn-welcome-go').addEventListener('click', go);
-    $('welcome-name')?.addEventListener('keydown', (e) => { if (e.key === 'Enter') go(); });
-  }
+  $('btn-google-signin')?.addEventListener('click', async () => {
+    try {
+      await signInWithPopup(auth, provider);
+    } catch (e) {
+      if (e.code !== 'auth/popup-closed-by-user') showToast('Erreur de connexion Google.');
+    }
+  });
+
+  // Sign out
+  $('btn-signout')?.addEventListener('click', () => {
+    showConfirmModal('Vous serez redirigé vers l\'écran d\'accueil.', async () => {
+      await signOut(auth);
+    }, 'Se déconnecter ?');
+  });
 
   // Dashboard
   $('btn-create')?.addEventListener('click', () => {
+    if (!state.googleUser) {
+      signInWithPopup(auth, provider).catch(e => {
+        if (e.code !== 'auth/popup-closed-by-user') showToast('Erreur de connexion Google.');
+      });
+      return;
+    }
     state.view = 'create';
     state.creTitle = '';
     state.creDates = new Set();
@@ -888,14 +941,14 @@ function fallbackCopy(text) {
   ta.remove();
 }
 
-function showConfirmModal(message, onConfirm) {
+function showConfirmModal(message, onConfirm, title = 'Supprimer le sondage ?') {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity 0.15s ease';
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:1.25rem;padding:1.5rem;max-width:20rem;width:calc(100% - 2rem);
                 box-shadow:0 20px 60px rgba(0,0,0,0.2);transform:scale(0.95);
                 transition:transform 0.15s ease;text-align:center">
-      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">Supprimer le sondage ?</p>
+      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">${title}</p>
       <p style="font-size:0.8125rem;color:#6b7280;margin-bottom:1.25rem">${message}</p>
       <div style="display:flex;gap:0.75rem">
         <button id="modal-cancel"
@@ -1053,8 +1106,7 @@ function openPoll(id) {
 async function backToDashboard() {
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
-  if (user.name) await loadDashboard();
-  else { state.view = 'welcome'; render(); }
+  await loadDashboard();
 }
 
 function resetCal() {
@@ -1097,22 +1149,12 @@ function render() {
 // ─── INIT ─────────────────────────────────────────────────────────────────────
 
 async function init() {
-  const urlPollId = getUrlPollId();
-
-  // Direct link → open poll immediately (even without a name)
-  if (urlPollId) {
-    await loadAndOpenPoll(urlPollId);
-    return;
-  }
-
-  // First visit → ask for name
-  if (!user.name) {
-    state.view = 'welcome';
-    render();
-    return;
-  }
-
-  await loadDashboard();
+  onAuthStateChanged(auth, async (googleUser) => {
+    state.googleUser = googleUser ?? null;
+    const urlPollId = getUrlPollId();
+    if (urlPollId) { await loadAndOpenPoll(urlPollId); return; }
+    await loadDashboard();
+  });
 }
 
 init();
