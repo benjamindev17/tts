@@ -70,6 +70,10 @@ const state = {
   creDates: new Set(),
   voteName: '',
   voteSelections: {},    // dateKey -> 'available' | 'maybe'
+  editingPoll: false,    // owner edit mode
+  editTitle: '',
+  editDates: new Set(),
+  editingVote: false,    // re-vote mode
   loading: false,
   unsubPoll: null,       // onSnapshot unsubscribe fn
 };
@@ -246,11 +250,12 @@ function renderCalendar(mode, pollDates) {
     const isWE = dow === 0 || dow === 6;
     let cls = 'cal-cell ', attr = '';
 
-    if (mode === 'create') {
+    if (mode === 'create' || mode === 'edit') {
       cls += 'clickable cursor-pointer ';
-      if (state.creDates.has(key))   cls += 'bg-indigo-500 text-white font-semibold shadow-sm shadow-indigo-200';
-      else if (isWE)                 cls += 'bg-gray-100 text-gray-500 hover:bg-indigo-100';
-      else                           cls += 'text-gray-700 hover:bg-indigo-100';
+      const selected = mode === 'edit' ? state.editDates.has(key) : state.creDates.has(key);
+      if (selected)   cls += 'bg-indigo-500 text-white font-semibold shadow-sm shadow-indigo-200';
+      else if (isWE)  cls += 'bg-gray-100 text-gray-500 hover:bg-indigo-100';
+      else            cls += 'text-gray-700 hover:bg-indigo-100';
       attr = `data-date="${key}"`;
     } else {
       const proposed = Array.isArray(pollDates) && pollDates.includes(key);
@@ -336,13 +341,14 @@ function pollCard(p) {
     : '';
   return `
     <div class="poll-item group flex items-center gap-4 p-4 bg-white rounded-2xl
-                border border-gray-100 hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer"
+                border border-indigo-200 shadow-sm hover:shadow-md transition-all cursor-pointer poll-card-shine"
          data-poll-id="${p.id}">
       <div class="flex-1 min-w-0">
         <p class="font-semibold text-gray-900 truncate">${esc(p.title)}</p>
         <div class="flex items-center gap-2 mt-1 flex-wrap">
           <p class="text-xs text-gray-400">
             ${dates.length} date${dates.length>1?'s':''} &middot; ${vc} participant${vc>1?'s':''}
+            ${p.createdAt ? `&middot; Créé le ${(p.createdAt.toDate ? p.createdAt.toDate() : p.createdAt).toLocaleDateString('fr-FR', {day:'numeric', month:'short'})}` : ''}
           </p>
           ${chip}
         </div>
@@ -358,8 +364,8 @@ function renderDashboard() {
   const hasContent = state.myPolls.length > 0 || state.myParticipations.length > 0;
 
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-md mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="app-container">
 
         <!-- Header -->
         <header class="mb-8 pt-4 flex items-center justify-between">
@@ -439,8 +445,8 @@ function renderCreate() {
   const btnOff = 'bg-gray-100 text-gray-400 cursor-not-allowed';
 
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-md mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="app-container">
 
         <div class="flex items-center gap-3 mb-6 pt-2">
           <button id="btn-back"
@@ -449,7 +455,6 @@ function renderCreate() {
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
           </button>
-          <h1 class="text-xl font-bold text-gray-900">Nouveau sondage</h1>
         </div>
 
         <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100 mb-4">
@@ -499,46 +504,110 @@ function renderPoll() {
   const shareUrl = getShareUrl(poll.id);
   const isOwner  = poll.creatorId === user.id;
 
-  const resultItems = results.map(({date, score, participants}) => {
+  const maxScore = results.length > 0 ? Math.max(...results.map(r => r.score)) : 0;
+
+  const resultItems = results.map(({date, score, participants}, idx) => {
     const badges = participants.map(({name, status}) =>
-      `<span class="inline-flex items-center text-xs px-2.5 py-0.5 rounded-full font-medium
+      `<span class="inline-flex items-center gap-0.5 text-xs px-2.5 py-0.5 rounded-full font-medium
                     ${status==='available'
                       ? 'bg-green-100 text-green-700 border border-green-200'
-                      : 'bg-orange-100 text-orange-700 border border-orange-200'}">${esc(name)}</span>`
+                      : 'bg-orange-100 text-orange-700 border border-orange-200'}">
+        ${esc(name)}${status === 'maybe' ? '<span class="opacity-60">?</span>' : ''}
+      </span>`
     ).join('');
-    const scoreTag =
-      score >= 4 ? 'text-green-600 bg-green-50 border border-green-100' :
-      score >= 2 ? 'text-orange-500 bg-orange-50 border border-orange-100' :
-                   'text-gray-400 bg-gray-50 border border-gray-100';
+    const availCount = participants.filter(p => p.status === 'available').length;
+    const maybeCount = participants.filter(p => p.status === 'maybe').length;
+    const totalVoters = vc || 1;
+    const availPct = Math.round(availCount / totalVoters * 100);
+    const maybePct = Math.round(maybeCount / totalVoters * 100);
+    const isBest   = score > 0 && score === maxScore;
+    const bar = `
+      <div class="flex rounded-full overflow-hidden h-1.5 bg-gray-200 mt-2">
+        ${availPct > 0 ? `<div style="width:${availPct}%" class="bg-green-500"></div>` : ''}
+        ${maybePct > 0 ? `<div style="width:${maybePct}%" class="bg-orange-400"></div>` : ''}
+      </div>`;
     return `
-      <div class="p-3.5 rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div class="p-3.5 rounded-xl bg-white transition-colors"
+           style="border:1px solid #d1d5db;${isBest
+             ? 'box-shadow:0 6px 24px rgba(34,197,94,0.30),0 2px 8px rgba(34,197,94,0.15)'
+             : 'box-shadow:0 1px 4px rgba(0,0,0,0.05)'}">
         <div class="flex items-start justify-between gap-3 mb-2">
-          <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
-          <span class="text-xs font-bold px-2 py-0.5 rounded-full flex-shrink-0 ${scoreTag}">
-            ${score} pt${score>1?'s':''}
-          </span>
+          <div class="flex items-center gap-2 min-w-0">
+            <span class="text-xs font-bold text-gray-400 flex-shrink-0">${idx + 1}.</span>
+            <p class="text-sm font-medium text-gray-800 leading-snug">${fmtLong(date)}</p>
+          </div>
+          <div class="flex items-center gap-1.5 flex-shrink-0">
+            ${score > 0 ? `<span class="text-xs font-semibold ${isBest ? 'text-green-600' : 'text-gray-400'}">${availCount + maybeCount}/${vc}</span>` : ''}
+            ${isBest ? `<span class="text-xs font-semibold text-green-600 bg-green-50 border border-green-200 px-2 py-0.5 rounded-full">Meilleure date</span>` : ''}
+          </div>
         </div>
         ${participants.length > 0
-          ? `<div class="flex flex-wrap gap-1">${badges}</div>`
+          ? `<div class="flex flex-wrap gap-1">${badges}</div>${bar}`
           : '<p class="text-xs text-gray-400">Aucun vote</p>'}
       </div>`;
   }).join('');
 
+  const hasVotedNow = !!(poll.voterNames?.[user.id]);
+  const calendarTabHtml = (hasVotedNow && !state.editingVote)
+    ? `<div class="space-y-4">
+        <div class="relative bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <div class="opacity-30 pointer-events-none select-none">${renderCalendar('vote', poll.dates)}</div>
+          <div class="absolute inset-0 flex items-center justify-center rounded-2xl">
+            <button id="btn-edit-vote" class="btn-primary flex items-center justify-center gap-2 px-6 py-3.5">
+              Modifier mon vote
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
+              </svg>
+            </button>
+          </div>
+        </div>
+      </div>`
+    : `<div class="space-y-4">
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
+          <input id="voter-name" type="text" value="${esc(state.voteName)}"
+                 placeholder="Votre prénom…"
+                 class="w-full px-4 py-3 rounded-xl border border-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
+                        text-gray-800 placeholder-gray-300 text-sm transition mb-4">
+          <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>1 clic = Disponible</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>2 clics = Peut-être</span>
+            <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>3 clics = Indisponible</span>
+          </div>
+          ${renderCalendar('vote', poll.dates)}
+        </div>
+        <button id="btn-submit-vote" class="btn-primary w-full flex items-center justify-center gap-2 py-3.5">
+          Valider mon vote
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
+          </svg>
+        </button>
+      </div>`;
+
   return `
-    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 md:p-8 fade-in">
-      <div class="max-w-lg mx-auto">
+    <div class="min-h-screen bg-gradient-to-br from-slate-50 via-white to-indigo-50 p-4 fade-in">
+      <div class="app-container">
 
         <!-- Header -->
         <div class="flex items-start gap-3 mb-4 pt-2">
           <button id="btn-back"
-                  class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl
-                         hover:bg-gray-100 transition text-gray-500 mt-0.5">
+                  class="w-9 h-9 flex-shrink-0 flex items-center justify-center rounded-xl hover:bg-gray-100 transition text-gray-500 mt-0.5">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
             </svg>
           </button>
           <div class="flex-1 min-w-0">
-            <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
+            <div class="flex items-center gap-1.5">
+              <h1 class="text-xl font-bold text-gray-900">${esc(poll.title)}</h1>
+              ${isOwner ? `
+              <button id="btn-edit-poll" title="Modifier le sondage"
+                      class="w-6 h-6 flex items-center justify-center rounded-lg hover:bg-gray-100 transition text-gray-300 hover:text-indigo-400 flex-shrink-0">
+                <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                        d="M15.232 5.232l3.536 3.536M9 13l6.586-6.586a2 2 0 012.828 2.828L11.828 15.828a2 2 0 01-1.414.586H9v-2a2 2 0 01.586-1.414z"/>
+                </svg>
+              </button>` : ''}
+            </div>
             <p class="text-xs text-gray-400 mt-0.5">
               ${(poll.dates||[]).length} date${(poll.dates||[]).length>1?'s':''} proposée${(poll.dates||[]).length>1?'s':''}
               &middot; ${vc} participant${vc>1?'s':''}
@@ -556,21 +625,42 @@ function renderPoll() {
           </button>` : ''}
         </div>
 
-        <!-- Share URL banner -->
-        <div class="bg-indigo-50 border border-indigo-100 rounded-xl px-4 py-3
-                    flex items-center gap-3 mb-5">
-          <svg class="w-4 h-4 text-indigo-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+        ${isOwner && state.editingPoll ? `
+        <!-- Edit panel -->
+        <div class="bg-white rounded-2xl p-5 shadow-sm border border-indigo-100 mb-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Modifier le sondage</p>
+          <input id="edit-poll-title" type="text" value="${esc(state.editTitle)}"
+                 placeholder="Titre du sondage"
+                 class="w-full px-4 py-2.5 rounded-xl border border-gray-200
+                        focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
+                        text-gray-800 text-sm mb-4">
+          <p class="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-2">Dates proposées</p>
+          ${renderCalendar('edit', null)}
+          <div class="flex gap-2 mt-4">
+            <button id="btn-cancel-edit"
+                    class="flex-1 py-2.5 text-sm font-semibold rounded-xl border border-gray-200
+                           bg-gray-50 hover:bg-gray-100 text-gray-600 transition">
+              Annuler
+            </button>
+            <button id="btn-save-edit"
+                    class="btn-primary flex-1 py-2.5 text-sm">
+              Enregistrer
+            </button>
+          </div>
+        </div>` : ''}
+
+        <!-- Share button -->
+        <button id="btn-copy-link"
+                class="w-full flex items-center justify-center gap-2 mb-5
+                       text-sm font-semibold text-indigo-600
+                       bg-indigo-50 hover:bg-indigo-100 border border-indigo-100
+                       px-4 py-2.5 rounded-xl transition">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                   d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
           </svg>
-          <span class="text-xs text-indigo-600 font-mono truncate flex-1 select-all">${esc(shareUrl)}</span>
-          <button id="btn-copy-link"
-                  class="text-xs font-semibold text-indigo-600 hover:text-indigo-800
-                         bg-white border border-indigo-200 hover:border-indigo-400
-                         px-3 py-1.5 rounded-lg transition flex-shrink-0">
-            Copier
-          </button>
-        </div>
+          Copier le lien du sondage
+        </button>
 
         <!-- Tab bar -->
         <div class="flex bg-gray-100 p-1 rounded-2xl mb-5">
@@ -593,36 +683,7 @@ function renderPoll() {
         </div>
 
         <!-- Tab content -->
-        ${state.pollTab === 'calendar' ? `
-          <div class="space-y-4">
-            <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
-              <input id="voter-name" type="text" value="${esc(state.voteName)}"
-                     placeholder="Votre prénom…"
-                     class="w-full px-4 py-3 rounded-xl border border-gray-200
-                            focus:outline-none focus:ring-2 focus:ring-indigo-300 focus:border-transparent
-                            text-gray-800 placeholder-gray-300 text-sm transition mb-4">
-              <div class="flex flex-wrap gap-4 text-xs text-gray-400 mb-4">
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-green-400 inline-block"></span>Disponible
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-orange-500 inline-block"></span>Peut-être
-                </span>
-                <span class="flex items-center gap-1.5">
-                  <span class="w-2.5 h-2.5 rounded-full bg-gray-200 inline-block ring-2 ring-indigo-200"></span>Indisponible
-                </span>
-              </div>
-              ${renderCalendar('vote', poll.dates)}
-            </div>
-            <button id="btn-submit-vote"
-                    class="btn-primary w-full flex items-center justify-center gap-2 py-3.5">
-              Valider mon vote
-              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/>
-              </svg>
-            </button>
-          </div>
-        ` : `
+        ${state.pollTab === 'calendar' ? calendarTabHtml : `
           <div class="bg-white rounded-2xl p-5 shadow-sm border border-gray-100">
             ${results.length > 0
               ? `<div class="space-y-2">${resultItems}</div>`
@@ -703,6 +764,9 @@ function attachEvents() {
       if (state.view === 'create') {
         if (state.creDates.has(date)) state.creDates.delete(date); else state.creDates.add(date);
         render();
+      } else if (state.view === 'poll' && state.editingPoll) {
+        if (state.editDates.has(date)) state.editDates.delete(date); else state.editDates.add(date);
+        render();
       } else if (state.view === 'poll') {
         const cur = state.voteSelections[date];
         if (!cur)               state.voteSelections[date] = 'available';
@@ -713,10 +777,32 @@ function attachEvents() {
     })
   );
 
-  // Create / vote / delete
+  // Create / vote / delete / edit
   $('btn-save-poll')?.addEventListener('click',   () => createPoll());
   $('btn-submit-vote')?.addEventListener('click', () => submitVote());
   $('btn-delete-poll')?.addEventListener('click', () => deletePoll());
+
+  $('btn-edit-poll')?.addEventListener('click', () => {
+    const poll = state.pollCache[state.currentPollId];
+    state.editTitle   = poll.title;
+    state.editDates   = new Set(poll.dates || []);
+    state.editingPoll = true;
+    const { year, month } = splitDate((poll.dates || [])[0] || mkDate(state.calYear, state.calMonth, 1));
+    state.calYear = year; state.calMonth = month;
+    render();
+  });
+
+  $('btn-cancel-edit')?.addEventListener('click', () => {
+    state.editingPoll = false;
+    render();
+  });
+
+  $('btn-edit-vote')?.addEventListener('click', () => {
+    state.editingVote = true;
+    render();
+  });
+
+  $('btn-save-edit')?.addEventListener('click', () => savePollEdit());
 
   // Poll tabs
   $('btn-tab-cal')?.addEventListener('click', () => {
@@ -731,10 +817,15 @@ function attachEvents() {
     state.pollTab = 'results';
     render();
   });
-  $('btn-copy-link')?.addEventListener('click',   () => {
-    navigator.clipboard.writeText(getShareUrl(state.currentPollId))
-      .then(() => showToast('Lien copié dans le presse-papiers !'))
-      .catch(() => showToast('Impossible de copier automatiquement.'));
+  $('btn-copy-link')?.addEventListener('click', () => {
+    const url = getShareUrl(state.currentPollId);
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(url)
+        .then(() => showToast('Lien copié dans le presse-papiers !'))
+        .catch(() => fallbackCopy(url));
+    } else {
+      fallbackCopy(url);
+    }
   });
 }
 
@@ -761,6 +852,11 @@ async function createPoll() {
     voterNames: {},
   };
 
+  const btn = document.getElementById('btn-save-poll');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Création…';
+  }
   try {
     await setDoc(doc(db, 'polls', id), data);
     const poll = { id, ...data, createdAt: new Date() };
@@ -771,23 +867,103 @@ async function createPoll() {
   } catch (e) {
     console.error(e);
     showToast('Erreur Firestore — vérifiez les règles de sécurité.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'Créer le sondage <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/></svg>';
+    }
   }
 }
 
-async function deletePoll() {
-  if (!confirm('Supprimer ce sondage définitivement ?')) return;
-  const id = state.currentPollId;
+function fallbackCopy(text) {
+  const ta = document.createElement('textarea');
+  ta.value = text;
+  ta.style.cssText = 'position:fixed;top:0;left:0;opacity:0;pointer-events:none';
+  document.body.appendChild(ta);
+  ta.focus(); ta.select();
   try {
-    await deleteDoc(doc(db, 'polls', id));
-    delete state.pollCache[id];
-    state.myPolls = state.myPolls.filter((p) => p.id !== id);
-    if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
-    showToast('Sondage supprimé.');
-    pushUrlHome();
-    await loadDashboard();
+    document.execCommand('copy');
+    showToast('Lien copié dans le presse-papiers !');
+  } catch {
+    showToast('Impossible de copier automatiquement.');
+  }
+  ta.remove();
+}
+
+function showConfirmModal(message, onConfirm) {
+  const overlay = document.createElement('div');
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity 0.15s ease';
+  overlay.innerHTML = `
+    <div style="background:#fff;border-radius:1.25rem;padding:1.5rem;max-width:20rem;width:calc(100% - 2rem);
+                box-shadow:0 20px 60px rgba(0,0,0,0.2);transform:scale(0.95);
+                transition:transform 0.15s ease;text-align:center">
+      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">Supprimer le sondage ?</p>
+      <p style="font-size:0.8125rem;color:#6b7280;margin-bottom:1.25rem">${message}</p>
+      <div style="display:flex;gap:0.75rem">
+        <button id="modal-cancel"
+                style="flex:1;padding:0.625rem;border-radius:9999px;border:1px solid #e5e7eb;
+                       background:#f9fafb;font-size:0.875rem;font-weight:600;color:#374151;cursor:pointer">
+          Annuler
+        </button>
+        <button id="modal-confirm"
+                style="flex:1;padding:0.625rem;border-radius:9999px;border:none;
+                       background:#ef4444;font-size:0.875rem;font-weight:600;color:#fff;cursor:pointer">
+          Supprimer
+        </button>
+      </div>
+    </div>`;
+
+  const remove = () => overlay.remove();
+  const card   = overlay.querySelector('div');
+
+  requestAnimationFrame(() => {
+    overlay.style.opacity = '1';
+    card.style.transform  = 'scale(1)';
+  });
+
+  overlay.addEventListener('click', (e) => { if (e.target === overlay) remove(); });
+  overlay.querySelector('#modal-cancel').addEventListener('click', remove);
+  overlay.querySelector('#modal-confirm').addEventListener('click', () => { remove(); onConfirm(); });
+
+  document.body.appendChild(overlay);
+}
+
+async function deletePoll() {
+  showConfirmModal('Cette action est irréversible.', async () => {
+    const id = state.currentPollId;
+    try {
+      await deleteDoc(doc(db, 'polls', id));
+      delete state.pollCache[id];
+      state.myPolls = state.myPolls.filter((p) => p.id !== id);
+      if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
+      showToast('Sondage supprimé.');
+      pushUrlHome();
+      await loadDashboard();
+    } catch (e) {
+      console.error(e);
+      showToast('Erreur lors de la suppression.');
+    }
+  });
+}
+
+async function savePollEdit() {
+  const title = (document.getElementById('edit-poll-title')?.value ?? '').trim();
+  if (!title) { document.getElementById('edit-poll-title')?.focus(); return; }
+  if (state.editDates.size === 0) { showToast('Sélectionnez au moins une date.'); return; }
+
+  const btn = document.getElementById('btn-save-edit');
+  if (btn) { btn.disabled = true; btn.textContent = 'Enregistrement…'; }
+
+  try {
+    const dates = [...state.editDates].sort();
+    await updateDoc(doc(db, 'polls', state.currentPollId), { title, dates });
+    state.editingPoll = false;
+    showToast('Sondage mis à jour !');
   } catch (e) {
     console.error(e);
-    showToast('Erreur lors de la suppression.');
+    showToast('Erreur lors de la mise à jour.');
+  } finally {
+    if (btn) { btn.disabled = false; btn.textContent = 'Enregistrer'; }
   }
 }
 
@@ -805,20 +981,31 @@ async function submitVote() {
   const voteObj = {};
   (poll.dates || []).forEach((d) => { if (state.voteSelections[d]) voteObj[d] = state.voteSelections[d]; });
 
+  const btn = document.getElementById('btn-submit-vote');
+  if (btn) {
+    btn.disabled = true;
+    btn.innerHTML = '<div class="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin"></div> Envoi…';
+  }
   try {
     await updateDoc(doc(db, 'polls', state.currentPollId), {
-      [`votes.${name}`]:       voteObj,          // vote data (keyed by display name)
-      [`voterNames.${user.id}`]: name,           // userId -> display name mapping
-      participantIds: arrayUnion(user.id),       // enables dashboard "participations" query
+      [`votes.${name}`]:       voteObj,
+      [`voterNames.${user.id}`]: name,
+      participantIds: arrayUnion(user.id),
     });
     if (name !== user.name) user.name = name;
     state.voteName = ''; state.voteSelections = {};
-    state.pollTab  = 'results'; // show results after voting
+    state.pollTab    = 'results';
+    state.editingVote = false;
     showToast(`Vote de ${name} enregistré !`);
     render();
   } catch (e) {
     console.error(e);
     showToast('Erreur lors du vote. Réessayez.');
+  } finally {
+    if (btn) {
+      btn.disabled = false;
+      btn.innerHTML = 'Valider mon vote <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M5 13l4 4L19 7"/></svg>';
+    }
   }
 }
 
@@ -831,9 +1018,19 @@ function openPoll(id) {
   state.view           = 'poll';
   state.voteName       = user.name;
   state.voteSelections = {};
-  state.pollTab        = 'calendar';
+  state.editingPoll    = false;
+  state.editingVote    = false;
 
   const poll = state.pollCache[id];
+  const hasVoted = !!(poll?.voterNames?.[user.id]);
+  state.pollTab = hasVoted ? 'results' : 'calendar';
+
+  if (poll) {
+    const voterName = poll.voterNames?.[user.id];
+    if (voterName && poll.votes?.[voterName]) {
+      state.voteSelections = { ...poll.votes[voterName] };
+    }
+  }
   if (poll?.dates?.length > 0) {
     const {year, month} = splitDate(poll.dates[0]);
     state.calYear = year; state.calMonth = month;
@@ -856,6 +1053,7 @@ function openPoll(id) {
 }
 
 async function backToDashboard() {
+  showToast('Retour…');
   if (state.unsubPoll) { state.unsubPoll(); state.unsubPoll = null; }
   pushUrlHome();
   if (user.name) await loadDashboard();
@@ -868,8 +1066,9 @@ function resetCal() {
 }
 
 function saveTempInputs() {
-  const t = document.getElementById('poll-title');  if (t) state.creTitle = t.value;
-  const n = document.getElementById('voter-name');  if (n) state.voteName  = n.value;
+  const t = document.getElementById('poll-title');       if (t) state.creTitle  = t.value;
+  const n = document.getElementById('voter-name');       if (n) state.voteName  = n.value;
+  const e = document.getElementById('edit-poll-title');  if (e) state.editTitle = e.value;
 }
 
 // ─── RENDER ───────────────────────────────────────────────────────────────────
@@ -878,12 +1077,17 @@ function render() {
   const app = document.getElementById('app');
   if (!app) return;
   if (state.loading) { app.innerHTML = renderLoading(); return; }
+  const sameView = app.dataset.view === state.view;
   switch (state.view) {
     case 'welcome':   app.innerHTML = renderWelcome();   break;
     case 'dashboard': app.innerHTML = renderDashboard(); break;
     case 'create':    app.innerHTML = renderCreate();    break;
     case 'poll':      app.innerHTML = renderPoll();      break;
     default:          app.innerHTML = renderLoading();
+  }
+  app.dataset.view = state.view;
+  if (sameView && (state.view === 'poll' || state.view === 'create')) {
+    app.querySelector('.fade-in')?.classList.remove('fade-in');
   }
   attachEvents();
 }

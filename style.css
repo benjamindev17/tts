@@ -2,10 +2,27 @@ body {
   font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
 }
 
+.app-container {
+  width: 100%;
+  max-width: 100%;
+  margin: 0 auto;
+}
+
+@media (min-width: 768px) {
+  .app-container {
+    width: 33.333%;
+    min-width: 400px;
+  }
+}
+
 /* Suppress native tap flash + double-tap zoom delay on all interactive elements */
-button, [data-date] {
+* {
   -webkit-tap-highlight-color: transparent;
+}
+
+button, a, [data-date], [data-poll-id] {
   touch-action: manipulation;
+  cursor: pointer;
 }
 
 /* ── Primary CTA button ───────────────────────────────────────────────────── */
@@ -47,12 +64,36 @@ button, [data-date] {
 
 /* Page entrance animation */
 .fade-in {
-  animation: fadeIn 0.18s ease both;
+  animation: fadeIn 0.1s ease both;
 }
 
 @keyframes fadeIn {
-  from { opacity: 0; transform: translateY(6px); }
-  to   { opacity: 1; transform: translateY(0);   }
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Poll card hover wave fill */
+.poll-card-shine {
+  position: relative;
+  overflow: hidden;
+}
+
+.poll-card-shine::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 140%;
+  height: 100%;
+  background: rgba(91, 94, 244, 0.09);
+  border-radius: 0 60% 60% 0 / 0 50% 50% 0;
+  transform: translateX(-140%);
+  transition: transform 1.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+  pointer-events: none;
+}
+
+.poll-card-shine:hover::after {
+  transform: translateX(0);
 }
 
 /* Toast */
