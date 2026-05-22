@@ -439,7 +439,7 @@ function renderDashboard() {
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2.5" d="M12 4v16m8-8H4"/>
           </svg>
-          Créer un sondage
+          ${state.googleUser ? 'Créer un sondage' : 'Connectez-vous gratuitement pour créer un sondage'}
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 7l5 5m0 0l-5 5m5-5H6"/>
           </svg>
@@ -757,8 +757,10 @@ function attachEvents() {
   });
 
   // Sign out
-  $('btn-signout')?.addEventListener('click', async () => {
-    await signOut(auth);
+  $('btn-signout')?.addEventListener('click', () => {
+    showConfirmModal('Vous serez redirigé vers l\'écran d\'accueil.', async () => {
+      await signOut(auth);
+    }, 'Se déconnecter ?');
   });
 
   // Dashboard
@@ -939,14 +941,14 @@ function fallbackCopy(text) {
   ta.remove();
 }
 
-function showConfirmModal(message, onConfirm) {
+function showConfirmModal(message, onConfirm, title = 'Supprimer le sondage ?') {
   const overlay = document.createElement('div');
   overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:999;opacity:0;transition:opacity 0.15s ease';
   overlay.innerHTML = `
     <div style="background:#fff;border-radius:1.25rem;padding:1.5rem;max-width:20rem;width:calc(100% - 2rem);
                 box-shadow:0 20px 60px rgba(0,0,0,0.2);transform:scale(0.95);
                 transition:transform 0.15s ease;text-align:center">
-      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">Supprimer le sondage ?</p>
+      <p style="font-size:0.9375rem;font-weight:600;color:#111827;margin-bottom:0.5rem">${title}</p>
       <p style="font-size:0.8125rem;color:#6b7280;margin-bottom:1.25rem">${message}</p>
       <div style="display:flex;gap:0.75rem">
         <button id="modal-cancel"
